@@ -33,8 +33,6 @@ export default function UserManagement() {
     type: "error",
   });
 
-  const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
-
   useEffect(() => {
     checkAdminAndLoad();
   }, []);
@@ -167,7 +165,7 @@ export default function UserManagement() {
     const { error } = await supabase
       .from("profiles")
       .update({ total_points: 0, exatos_count: 0 })
-      .neq("id", "00000000-0000-0000-0000-000000000000"); // UUID fictício que não existe
+      .neq("id", "00000000-0000-0000-0000-000000000000");
     if (error) {
       setAlertModal({
         isOpen: true,
@@ -371,7 +369,7 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* Confirmation modals */}
+      {/* Modais de confirmação */}
       {resetUserId !== null && (
         <ConfirmationModal
           isOpen={true}

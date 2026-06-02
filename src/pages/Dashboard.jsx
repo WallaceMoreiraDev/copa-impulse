@@ -22,6 +22,7 @@ const PHASES = [
 export default function Dashboard() {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
   const [savingId, setSavingId] = useState(null);
   const [savedId, setSavedId] = useState(null);
@@ -48,64 +49,71 @@ export default function Dashboard() {
   }, []);
 
   const loadDashboard = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) return;
-    const uid = session.user.id;
-    setUserId(uid);
+    setError(null);
+    setLoading(true);
+    try {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+      if (sessionError) throw new Error(sessionError.message);
+      if (!session) throw new Error("Usuário não autenticado");
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("active")
-      .eq("id", uid)
-      .single();
-    if (!profile?.active) {
+      const uid = session.user.id;
+      setUserId(uid);
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("active")
+        .eq("id", uid)
+        .single();
+
+      if (profileError) throw new Error(profileError.message);
+      if (!profile?.active) {
+        setLoading(false);
+        return;
+      }
+
+      const { data: matchesData, error: matchesError } = await supabase
+        .from("matches")
+        .select("*")
+        .order("match_date", { ascending: true });
+
+      if (matchesError) throw new Error(matchesError.message);
+
+      const { data: guessesData, error: guessesError } = await supabase
+        .from("guesses")
+        .select("*")
+        .eq("user_id", uid);
+
+      if (guessesError) throw new Error(guessesError.message);
+
+      const mergedData = (matchesData || []).map((m) => {
+        const guess = guessesData?.find((g) => g.match_id === m.id);
+        const pointsEarned = guess?.points_earned ?? null;
+        const hasPoints = pointsEarned !== null && pointsEarned > 0;
+        return {
+          ...m,
+          fase: m.fase || "Fase de Grupos",
+          grupo: m.grupo || "",
+          guess_id: guess?.id || null,
+          guess_a: guess?.guess_a !== undefined ? guess.guess_a : "",
+          guess_b: guess?.guess_b !== undefined ? guess.guess_b : "",
+          points: pointsEarned,
+          hasPoints: hasPoints,
+          isEditing: !guess?.id,
+        };
+      });
+      setMatches(mergedData);
+      await calculateStreak(uid);
+    } catch (err) {
+      console.error("Erro ao carregar dashboard:", err);
+      setError(
+        err.message || "Falha ao carregar os jogos. Verifique sua conexão.",
+      );
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const { data: matchesData, error: matchesError } = await supabase
-      .from("matches")
-      .select("*")
-      .order("match_date", { ascending: true });
-
-    if (matchesError) {
-      console.error(matchesError);
-      setLoading(false);
-      return;
-    }
-
-    const { data: guessesData, error: guessesError } = await supabase
-      .from("guesses")
-      .select("*")
-      .eq("user_id", uid);
-
-    if (guessesError) {
-      console.error(guessesError);
-      setLoading(false);
-      return;
-    }
-
-    const mergedData = (matchesData || []).map((m) => {
-      const guess = guessesData?.find((g) => g.match_id === m.id);
-      const pointsEarned = guess?.points_earned ?? null;
-      const hasPoints = pointsEarned !== null && pointsEarned > 0;
-      return {
-        ...m,
-        fase: m.fase || "Fase de Grupos",
-        grupo: m.grupo || "",
-        guess_id: guess?.id || null,
-        guess_a: guess?.guess_a !== undefined ? guess.guess_a : "",
-        guess_b: guess?.guess_b !== undefined ? guess.guess_b : "",
-        points: pointsEarned,
-        hasPoints: hasPoints,
-        isEditing: !guess?.id,
-      };
-    });
-    setMatches(mergedData);
-    await calculateStreak(uid);
-    setLoading(false);
   };
 
   const calculateStreak = async (uid) => {
@@ -239,6 +247,22 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-white">
         Carregando jogos...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-white p-4">
+        <div className="bg-red-900/30 border border-red-800 rounded-lg p-6 text-center max-w-md">
+          <p className="text-red-300 mb-4">❌ {error}</p>
+          <button
+            onClick={() => loadDashboard()}
+            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-semibold"
+          >
+            Tentar novamente
+          </button>
+        </div>
       </div>
     );
   }
