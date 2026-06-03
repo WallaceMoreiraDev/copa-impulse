@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../supabase";
 import {
   Trophy,
@@ -8,6 +8,7 @@ import {
   Flame,
   Info,
   Flag,
+  Search,
 } from "lucide-react";
 import { ConfirmationModal, AlertModal } from "../components/Modal";
 
@@ -19,8 +20,10 @@ const PHASES = [
   "Final",
 ];
 
+const ITEMS_PER_PAGE = 10;
+
 export default function Dashboard() {
-  const [matches, setMatches] = useState([]);
+  const [allMatches, setAllMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
@@ -38,6 +41,12 @@ export default function Dashboard() {
     type: "error",
   });
 
+  // Controle de paginação visual
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+
+  // Filtro de busca
+  const [searchTerm, setSearchTerm] = useState("");
+
   useEffect(() => {
     const handleScroll = () => setShowScrollTop(window.scrollY > 300);
     window.addEventListener("scroll", handleScroll);
@@ -51,6 +60,8 @@ export default function Dashboard() {
   const loadDashboard = async () => {
     setError(null);
     setLoading(true);
+    setVisibleCount(ITEMS_PER_PAGE);
+    setSearchTerm("");
     try {
       const {
         data: { session },
@@ -104,7 +115,7 @@ export default function Dashboard() {
           isEditing: !guess?.id,
         };
       });
-      setMatches(mergedData);
+      setAllMatches(mergedData);
       await calculateStreak(uid);
     } catch (err) {
       console.error("Erro ao carregar dashboard:", err);
@@ -163,14 +174,14 @@ export default function Dashboard() {
   };
 
   const handleGuessChange = (matchId, team, value) => {
-    setMatches(
-      matches.map((m) => (m.id === matchId ? { ...m, [team]: value } : m)),
+    setAllMatches((prev) =>
+      prev.map((m) => (m.id === matchId ? { ...m, [team]: value } : m)),
     );
   };
 
   const toggleEdit = (matchId) => {
-    setMatches(
-      matches.map((m) => (m.id === matchId ? { ...m, isEditing: true } : m)),
+    setAllMatches((prev) =>
+      prev.map((m) => (m.id === matchId ? { ...m, isEditing: true } : m)),
     );
   };
 
@@ -208,7 +219,7 @@ export default function Dashboard() {
         if (data) newGuessId = data.id;
       }
 
-      setMatches((currentMatches) =>
+      setAllMatches((currentMatches) =>
         currentMatches.map((m) =>
           m.id === match.id
             ? {
@@ -243,6 +254,74 @@ export default function Dashboard() {
     return diffMinutes <= 30;
   };
 
+  // Filtro por fase e grupo
+  const matchesByPhaseGroup = useMemo(() => {
+    let filtered = allMatches.filter((m) => m.fase === activePhase);
+    if (activePhase === "Fase de Grupos" && activeGroup !== "Todos") {
+      filtered = filtered.filter((m) => m.grupo === activeGroup);
+    }
+    return filtered;
+  }, [allMatches, activePhase, activeGroup]);
+
+  // Filtro de busca (por time ou data)
+  const filteredMatches = useMemo(() => {
+    if (!searchTerm.trim()) return matchesByPhaseGroup;
+    const term = searchTerm
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    return matchesByPhaseGroup.filter((match) => {
+      const teamA = match.team_a
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      const teamB = match.team_b
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      const dateStr = new Date(match.match_date).toLocaleDateString("pt-BR");
+      const dateNormalized = dateStr
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      return (
+        teamA.includes(term) ||
+        teamB.includes(term) ||
+        dateNormalized.includes(term)
+      );
+    });
+  }, [matchesByPhaseGroup, searchTerm]);
+
+  // Paginação visual
+  const visibleMatches = useMemo(() => {
+    return filteredMatches.slice(0, visibleCount);
+  }, [filteredMatches, visibleCount]);
+
+  const hasMore = visibleCount < filteredMatches.length;
+
+  const loadMore = () => {
+    setVisibleCount((prev) => prev + ITEMS_PER_PAGE);
+  };
+
+  const resetPagination = () => {
+    setVisibleCount(ITEMS_PER_PAGE);
+    setSearchTerm("");
+  };
+
+  // Quando fase ou grupo mudam, resetar paginação e busca
+  useEffect(() => {
+    resetPagination();
+  }, [activePhase, activeGroup]);
+
+  const availableGroups = [
+    "Todos",
+    ...new Set(
+      allMatches
+        .filter((m) => m.fase === "Fase de Grupos" && m.grupo)
+        .map((m) => m.grupo)
+        .sort(),
+    ),
+  ];
+
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-white">
@@ -267,25 +346,10 @@ export default function Dashboard() {
     );
   }
 
-  let filteredMatches = matches.filter((m) => m.fase === activePhase);
-  if (activePhase === "Fase de Grupos" && activeGroup !== "Todos") {
-    filteredMatches = filteredMatches.filter((m) => m.grupo === activeGroup);
-  }
-
-  const availableGroups = [
-    "Todos",
-    ...new Set(
-      matches
-        .filter((m) => m.fase === "Fase de Grupos" && m.grupo)
-        .map((m) => m.grupo)
-        .sort(),
-    ),
-  ];
-
   return (
     <div className="min-h-screen bg-zinc-950 p-4 md:p-8 font-sans text-zinc-100">
       <div className="max-w-3xl mx-auto">
-        {/* Cabeçalho com logo e menu */}
+        {/* Cabeçalho */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
           <img
             src="/logo5.png"
@@ -330,7 +394,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Título da seção de palpites */}
+        {/* Título */}
         <div className="mb-3">
           <h1 className="text-2xl font-bold text-white">
             Jogos para você dar palpite
@@ -355,7 +419,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Filtros */}
+        {/* Filtros de fase */}
         <div className="flex gap-2 overflow-x-auto pb-4 mb-2 border-b border-zinc-800">
           {PHASES.map((fase) => (
             <button
@@ -375,6 +439,7 @@ export default function Dashboard() {
           ))}
         </div>
 
+        {/* Filtros de grupo */}
         {activePhase === "Fase de Grupos" && availableGroups.length > 1 && (
           <div className="flex gap-2 overflow-x-auto pb-4 mb-4">
             {availableGroups.map((grupo) => (
@@ -393,9 +458,23 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Campo de busca */}
+        <div className="relative mb-4">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search size={16} className="text-zinc-500" />
+          </div>
+          <input
+            type="text"
+            placeholder="Buscar por time ou data (ex: Brasil, 15/06)"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-2 pl-10 pr-4 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-green-500 transition-colors"
+          />
+        </div>
+
         {/* Lista de jogos */}
         <div className="space-y-3">
-          {filteredMatches.map((match) => {
+          {visibleMatches.map((match) => {
             const locked = isLocked(match);
             const showEditMode = match.isEditing && !locked;
             const isFinalized = match.status === "finalizado";
@@ -441,7 +520,11 @@ export default function Dashboard() {
                     <div className="flex flex-col items-center">
                       <div className="flex items-center justify-center gap-3 bg-zinc-950 border border-zinc-800 px-6 py-2 rounded-lg">
                         <span
-                          className={`text-2xl font-bold ${match.guess_a !== "" ? "text-green-500" : "text-zinc-700"}`}
+                          className={`text-2xl font-bold ${
+                            match.guess_a !== ""
+                              ? "text-green-500"
+                              : "text-zinc-700"
+                          }`}
                         >
                           {match.guess_a !== "" ? match.guess_a : "-"}
                         </span>
@@ -449,7 +532,11 @@ export default function Dashboard() {
                           X
                         </span>
                         <span
-                          className={`text-2xl font-bold ${match.guess_b !== "" ? "text-green-500" : "text-zinc-700"}`}
+                          className={`text-2xl font-bold ${
+                            match.guess_b !== ""
+                              ? "text-green-500"
+                              : "text-zinc-700"
+                          }`}
                         >
                           {match.guess_b !== "" ? match.guess_b : "-"}
                         </span>
@@ -545,11 +632,32 @@ export default function Dashboard() {
               </div>
             );
           })}
-          {filteredMatches.length === 0 && (
+
+          {visibleMatches.length === 0 && (
             <div className="text-center py-12 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
               <p className="text-zinc-500 font-medium">
-                Nenhum jogo definido para esta seção ainda.
+                Nenhum jogo encontrado com os filtros atuais.
               </p>
+            </div>
+          )}
+
+          {/* Botão "Carregar mais" */}
+          {hasMore && (
+            <div className="flex justify-center py-4">
+              <button
+                onClick={loadMore}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors text-sm"
+              >
+                Carregar mais 10 jogos
+              </button>
+            </div>
+          )}
+
+          {/* Indicador de total carregado */}
+          {filteredMatches.length > ITEMS_PER_PAGE && (
+            <div className="text-center text-xs text-zinc-500 pt-2">
+              Mostrando {visibleMatches.length} de {filteredMatches.length}{" "}
+              jogos
             </div>
           )}
         </div>

@@ -7,14 +7,50 @@ import {
   Users,
   Calendar,
   CheckCircle,
-  Trophy,
-  BarChart3,
   PlusCircle,
   Trash2,
   Save,
   X,
   AlertTriangle,
+  Upload,
+  ChevronDown,
 } from "lucide-react";
+
+// Componente Dropdown simples
+function Dropdown({ label, icon: Icon, children }) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="bg-zinc-800 hover:bg-zinc-700 text-white px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-semibold flex items-center gap-1"
+      >
+        {Icon && <Icon size={14} />}
+        {label}
+        <ChevronDown size={12} className="ml-1" />
+      </button>
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg z-10">
+          <div className="py-1">{children}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DropdownItem({ onClick, icon: Icon, children }) {
+  return (
+    <button
+      onClick={() => {
+        onClick();
+      }}
+      className="w-full text-left px-4 py-2 text-sm text-white hover:bg-zinc-700 flex items-center gap-2"
+    >
+      {Icon && <Icon size={14} />}
+      {children}
+    </button>
+  );
+}
 
 export default function AdminPanel() {
   const [matches, setMatches] = useState([]);
@@ -50,6 +86,9 @@ export default function AdminPanel() {
   });
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [bulkData, setBulkData] = useState("");
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     checkAdminAndLoad();
@@ -66,19 +105,16 @@ export default function AdminPanel() {
         setChecking(false);
         return;
       }
-
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("is_admin")
         .eq("id", user.id)
         .single();
-
       if (profileError || !profile?.is_admin) {
         setIsAdmin(false);
         setChecking(false);
         return;
       }
-
       setIsAdmin(true);
       await loadMatches();
       await loadStats();
@@ -101,7 +137,6 @@ export default function AdminPanel() {
     const { count: totalUsers } = await supabase
       .from("profiles")
       .select("*", { count: "exact", head: true });
-
     setStats({
       totalMatches: totalMatches || 0,
       finishedMatches: finishedMatches || 0,
@@ -194,13 +229,11 @@ export default function AdminPanel() {
     e.preventDefault();
     setCreating(true);
     setMessage("");
-
     if (!newMatch.team_a || !newMatch.team_b || !newMatch.match_date) {
       setMessage("Preencha times e data/hora.");
       setCreating(false);
       return;
     }
-
     const matchToInsert = {
       team_a: newMatch.team_a,
       team_b: newMatch.team_b,
@@ -211,9 +244,7 @@ export default function AdminPanel() {
       goals_a: newMatch.goals_a ?? null,
       goals_b: newMatch.goals_b ?? null,
     };
-
     const { error } = await supabase.from("matches").insert([matchToInsert]);
-
     if (error) {
       console.error(error);
       setMessage(`Erro ao criar jogo: ${error.message}`);
@@ -262,18 +293,15 @@ export default function AdminPanel() {
     setDeletingAll(true);
     setMessage("");
     try {
-      // Deleta todos os jogos (palpites serão removidos automaticamente por ON DELETE CASCADE)
       const { error: matchesError } = await supabase
         .from("matches")
         .delete()
         .neq("id", 0);
-
       if (matchesError)
         throw new Error(`Erro ao remover jogos: ${matchesError.message}`);
-
       setMessage("Todos os jogos e seus palpites foram removidos com sucesso!");
-      await loadMatches(); 
-      await loadStats(); 
+      await loadMatches();
+      await loadStats();
     } catch (err) {
       console.error(err);
       setMessage(err.message);
@@ -281,6 +309,87 @@ export default function AdminPanel() {
       setDeletingAll(false);
       setShowDeleteAllConfirm(false);
     }
+  };
+
+  const handleBulkImport = async () => {
+    if (!bulkData.trim()) {
+      setMessage("Por favor, cole os dados dos jogos.");
+      return;
+    }
+    setImporting(true);
+    setMessage("");
+    const lines = bulkData.trim().split(/\r?\n/);
+    // ignora cabeçalho se existir
+    if (lines[0].toLowerCase().includes("time_a")) lines.shift();
+    const matchesToInsert = [];
+    const errors = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line === "") continue;
+      let parts;
+      if (line.includes(";")) {
+        parts = line.split(";").map((s) => s.trim());
+      } else {
+        parts = line.split(",").map((s) => s.trim());
+      }
+      if (parts.length < 4) {
+        errors.push(
+          `Linha ${i + 1}: poucas colunas (mínimo 4: time_a, time_b, data, fase)`,
+        );
+        continue;
+      }
+      const [
+        team_a,
+        team_b,
+        match_date,
+        fase,
+        grupo = null,
+        status = "pendente",
+        goals_a = null,
+        goals_b = null,
+      ] = parts;
+      if (!match_date.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)) {
+        errors.push(
+          `Linha ${i + 1}: data inválida (use formato YYYY-MM-DDTHH:MM)`,
+        );
+        continue;
+      }
+      matchesToInsert.push({
+        team_a,
+        team_b,
+        match_date,
+        fase,
+        grupo: grupo && grupo !== "" ? grupo.toUpperCase() : null,
+        status: ["pendente", "finalizado", "adiado"].includes(status)
+          ? status
+          : "pendente",
+        goals_a:
+          goals_a && !isNaN(parseInt(goals_a)) ? parseInt(goals_a) : null,
+        goals_b:
+          goals_b && !isNaN(parseInt(goals_b)) ? parseInt(goals_b) : null,
+      });
+    }
+    if (errors.length > 0) {
+      setMessage(`Erros encontrados:\n${errors.join("\n")}`);
+      setImporting(false);
+      return;
+    }
+    if (matchesToInsert.length === 0) {
+      setMessage("Nenhum jogo válido para importar.");
+      setImporting(false);
+      return;
+    }
+    const { error } = await supabase.from("matches").insert(matchesToInsert);
+    if (error) {
+      setMessage(`Erro ao importar jogos: ${error.message}`);
+    } else {
+      setMessage(`${matchesToInsert.length} jogos importados com sucesso!`);
+      setShowBulkImportModal(false);
+      setBulkData("");
+      await loadMatches();
+      await loadStats();
+    }
+    setImporting(false);
   };
 
   if (checking) {
@@ -319,56 +428,65 @@ export default function AdminPanel() {
   return (
     <div className="min-h-screen bg-zinc-950 p-6 font-sans text-zinc-100">
       <div className="max-w-6xl mx-auto">
-        {/* Cabeçalho com navegação */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+        {/* Cabeçalho reformulado */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <h1 className="text-xl md:text-2xl font-bold text-white">
             Painel do Administrador
           </h1>
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => (window.location.href = "/dashboard")}
-              className="bg-zinc-800 hover:bg-zinc-700 text-white px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm flex items-center gap-1"
-              title="Ir para o Dashboard"
+              className="bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-2 rounded-lg text-xs md:text-sm flex items-center gap-1"
             >
               <ArrowLeft size={14} /> Dashboard
             </button>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-green-600 hover:bg-green-700 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-semibold flex items-center gap-1"
-            >
-              <PlusCircle size={14} /> Novo Jogo
-            </button>
-            <button
-              onClick={() => (window.location.href = "/admin/users")}
-              className="bg-blue-600 hover:bg-blue-700 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-semibold flex items-center gap-1"
-            >
-              <Users size={14} /> Gerenciar Usuários
-            </button>
-            <button
-              onClick={() => setShowDeleteAllConfirm(true)}
-              className="bg-red-700 hover:bg-red-800 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-semibold flex items-center gap-1"
-              title="Excluir TODOS os jogos (palpites serão removidos)"
-            >
-              <Trash2 size={14} /> Excluir todos
-            </button>
-            <button
-              onClick={() => setShowRecalcConfirm(true)}
-              className="bg-amber-600 hover:bg-amber-700 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-semibold flex items-center gap-1"
-              title="Recalcular pontos de todos os jogos finalizados"
-            >
-              <RefreshCw size={14} /> Recalcular Pontos
-            </button>
+
+            <Dropdown label="Cadastrar" icon={PlusCircle}>
+              <DropdownItem
+                onClick={() => setShowCreateModal(true)}
+                icon={PlusCircle}
+              >
+                Novo Jogo
+              </DropdownItem>
+              <DropdownItem
+                onClick={() => setShowBulkImportModal(true)}
+                icon={Upload}
+              >
+                Importar em Massa
+              </DropdownItem>
+            </Dropdown>
+
+            <Dropdown label="Administração" icon={Users}>
+              <DropdownItem
+                onClick={() => (window.location.href = "/admin/users")}
+                icon={Users}
+              >
+                Gerenciar Usuários
+              </DropdownItem>
+              <DropdownItem
+                onClick={() => setShowRecalcConfirm(true)}
+                icon={RefreshCw}
+              >
+                Recalcular Pontos
+              </DropdownItem>
+              <DropdownItem
+                onClick={() => setShowDeleteAllConfirm(true)}
+                icon={Trash2}
+              >
+                Excluir Todos os Jogos
+              </DropdownItem>
+            </Dropdown>
 
             <button
               onClick={() => supabase.auth.signOut()}
-              className="text-red-400 hover:text-red-300 text-xs md:text-sm"
+              className="text-red-400 hover:text-red-300 text-xs md:text-sm px-2"
             >
               Sair
             </button>
           </div>
         </div>
 
-        {/* Cards de estatísticas */}
+        {/* Cards de estatísticas (mantido igual) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-3">
             <Calendar className="w-8 h-8 text-blue-500" />
@@ -401,8 +519,8 @@ export default function AdminPanel() {
 
         {message && (
           <div
-            className={`mb-4 p-3 rounded-lg ${
-              message.includes("sucesso")
+            className={`mb-4 p-3 rounded-lg whitespace-pre-wrap ${
+              message.includes("sucesso") || message.includes("importados")
                 ? "bg-green-900/50 text-green-300"
                 : "bg-red-900/50 text-red-300"
             }`}
@@ -411,6 +529,7 @@ export default function AdminPanel() {
           </div>
         )}
 
+        {/* Tabela de jogos (mesma do original) */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm border border-zinc-800 rounded-lg">
             <thead className="bg-zinc-900">
@@ -492,7 +611,6 @@ export default function AdminPanel() {
                         onClick={() => handleSave(match)}
                         disabled={saving === match.id}
                         className="bg-green-600 hover:bg-green-700 disabled:bg-green-800 px-3 py-1 rounded text-sm font-semibold flex items-center gap-1"
-                        title="Salvar placar e pontos"
                       >
                         <Save size={14} />
                         {saving === match.id ? "..." : "Salvar"}
@@ -501,7 +619,6 @@ export default function AdminPanel() {
                         onClick={() => setShowDeleteConfirm(match.id)}
                         disabled={deleting === match.id}
                         className="bg-red-700 hover:bg-red-800 disabled:bg-red-900 px-3 py-1 rounded text-sm font-semibold flex items-center gap-1"
-                        title="Excluir jogo (palpites serão removidos)"
                       >
                         <Trash2 size={14} />
                         {deleting === match.id ? "..." : ""}
@@ -513,8 +630,8 @@ export default function AdminPanel() {
               {matches.length === 0 && (
                 <tr>
                   <td colSpan="6" className="text-center py-8 text-zinc-500">
-                    Nenhum jogo cadastrado. Clique em "+ Novo Jogo" para
-                    começar.
+                    Nenhum jogo cadastrado. Clique em "Cadastrar" para
+                    adicionar.
                   </td>
                 </tr>
               )}
@@ -523,7 +640,7 @@ export default function AdminPanel() {
         </div>
       </div>
 
-      {/* Modal de criar jogo */}
+      {/* Modais (mantidos iguais) */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 rounded-xl max-w-md w-full p-6 border border-zinc-700">
@@ -606,7 +723,61 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {/* Modal de confirmação de exclusão */}
+      {showBulkImportModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 rounded-xl max-w-2xl w-full p-6 border border-zinc-700">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">
+                Importar Jogos em Massa
+              </h2>
+              <button
+                onClick={() => setShowBulkImportModal(false)}
+                className="text-zinc-400 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-zinc-400 text-sm mb-3">
+              Cole os dados no formato CSV (separado por vírgulas ou
+              ponto-e-vírgula). Cada linha deve conter os campos na ordem:
+            </p>
+            <pre className="bg-zinc-950 p-3 rounded text-xs text-zinc-300 mb-4 overflow-x-auto">
+              time_a, time_b, match_date, fase, grupo, status, goals_a, goals_b
+            </pre>
+            <p className="text-zinc-500 text-xs mb-2">
+              <strong>Exemplo:</strong>
+            </p>
+            <pre className="bg-zinc-950 p-3 rounded text-xs text-green-300 mb-4 overflow-x-auto">
+              Brasil, Sérvia, 2026-06-14T15:00, Fase de Grupos, G, pendente, ,
+              Suíça, Camarões, 2026-06-14T18:00, Fase de Grupos, G, pendente, ,
+            </pre>
+            <textarea
+              value={bulkData}
+              onChange={(e) => setBulkData(e.target.value)}
+              rows={10}
+              placeholder="Cole aqui os dados..."
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-3 text-sm text-white font-mono focus:outline-none focus:border-green-500"
+            />
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => setShowBulkImportModal(false)}
+                className="px-4 py-2 rounded bg-zinc-700 hover:bg-zinc-600 text-white"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleBulkImport}
+                disabled={importing}
+                className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-2"
+              >
+                <Upload size={16} />
+                {importing ? "Importando..." : "Importar Jogos"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDeleteConfirm !== null && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 rounded-xl max-w-md w-full p-6 border border-zinc-700">
@@ -622,16 +793,15 @@ export default function AdminPanel() {
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(null)}
-                className="px-4 py-2 rounded bg-zinc-700 hover:bg-zinc-600 text-white flex items-center gap-1"
+                className="px-4 py-2 rounded bg-zinc-700 hover:bg-zinc-600 text-white"
               >
-                <X size={14} /> Cancelar
+                Cancelar
               </button>
               <button
                 onClick={() => handleDeleteMatch(showDeleteConfirm)}
                 disabled={deleting !== null}
-                className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold flex items-center gap-1"
+                className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold"
               >
-                <Trash2 size={14} />
                 {deleting === showDeleteConfirm
                   ? "Excluindo..."
                   : "Sim, excluir"}
@@ -664,10 +834,8 @@ export default function AdminPanel() {
               <h2 className="text-xl font-bold">Excluir TODOS os jogos</h2>
             </div>
             <p className="text-zinc-300 mb-4">
-              <strong>ATENÇÃO:</strong> Isso vai remover{" "}
-              <strong>todos os jogos</strong> e{" "}
-              <strong>todos os palpites</strong> associados. Esta ação é
-              irreversível.
+              <strong>ATENÇÃO:</strong> Isso vai remover todos os jogos e todos
+              os palpites associados. Esta ação é irreversível.
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -679,7 +847,7 @@ export default function AdminPanel() {
               <button
                 onClick={handleDeleteAllMatches}
                 disabled={deletingAll}
-                className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold flex items-center gap-1"
+                className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold"
               >
                 {deletingAll ? "Excluindo..." : "Sim, excluir tudo"}
               </button>
