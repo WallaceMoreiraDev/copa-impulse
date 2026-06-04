@@ -478,6 +478,30 @@ export default function AdminPanel() {
             </Dropdown>
 
             <button
+              onClick={async () => {
+                setMessage("Importando jogos da Copa via football-data.org...");
+                try {
+                  const { data, error } = await supabase.functions.invoke(
+                    "import-copa",
+                    { method: "POST" },
+                  );
+                  if (error) throw error;
+                  setMessage(
+                    `${data.count} jogos importados/atualizados com sucesso!`,
+                  );
+                  await loadMatches();
+                  await loadStats();
+                } catch (err) {
+                  console.error(err);
+                  setMessage(`Erro: ${err.message}`);
+                }
+              }}
+              className="bg-purple-600 hover:bg-purple-700 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-semibold flex items-center gap-1"
+            >
+              <Calendar size={14} /> Importar da football-data
+            </button>
+
+            <button
               onClick={() => supabase.auth.signOut()}
               className="text-red-400 hover:text-red-300 text-xs md:text-sm px-2"
             >

@@ -38,16 +38,30 @@ export default function App() {
   }, []);
 
   const checkProfile = async (userId) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
-      .select("username")
+      .select("username, active")
       .eq("id", userId)
       .single();
 
-    if (data?.username) setHasProfile(true);
+    if (error || !data?.username) {
+      setHasProfile(false);
+      setLoading(false);
+      return;
+    }
+
+    if (data.active === false) {
+      // Usuário desativado: desloga e redireciona
+      await supabase.auth.signOut();
+      setHasProfile(false);
+      setLoading(false);
+      window.location.href = "/?deactivated=true";
+      return;
+    }
+
+    setHasProfile(true);
     setLoading(false);
   };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-white">

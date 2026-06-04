@@ -9,6 +9,8 @@ import {
   Info,
   Flag,
   Search,
+  Menu,
+  X,
 } from "lucide-react";
 import { ConfirmationModal, AlertModal } from "../components/Modal";
 
@@ -40,7 +42,8 @@ export default function Dashboard() {
     message: "",
     type: "error",
   });
-
+  const [expandedTeam, setExpandedTeam] = useState({}); // objeto com matchId_team (ex: '123_a' ou '123_b')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   // Controle de paginação visual
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
@@ -177,6 +180,16 @@ export default function Dashboard() {
     setAllMatches((prev) =>
       prev.map((m) => (m.id === matchId ? { ...m, [team]: value } : m)),
     );
+  };
+
+  const toggleTeamName = (matchId, team) => {
+    const key = `${matchId}_${team}`;
+    setExpandedTeam((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleMobileNavigation = (url) => {
+    setMobileMenuOpen(false);
+    window.location.href = url;
   };
 
   const toggleEdit = (matchId) => {
@@ -350,40 +363,49 @@ export default function Dashboard() {
     <div className="min-h-screen bg-zinc-950 p-4 md:p-8 font-sans text-zinc-100">
       <div className="max-w-3xl mx-auto">
         {/* Cabeçalho */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-          <img
-            src="/logo5.png"
-            alt="impulse"
-            className="h-8 md:h-10 object-contain"
-          />
-          <div className="flex flex-wrap justify-center gap-2">
+        {/* ========== CABEÇALHO RESPONSIVO ========== */}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4">
+          {/* Logo + menu desktop (lado a lado em desktop) */}
+          <div className="flex justify-between items-center w-full md:w-auto">
+            <img
+              src="/logo5.png"
+              alt="impulse"
+              className="h-8 md:h-10 object-contain"
+            />
+            {/* Botão hambúrguer (mobile) */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden bg-zinc-800 p-2 rounded-lg"
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
+
+          {/* Menu Desktop (visível apenas em desktop, ao lado da logo) */}
+          <div className="hidden md:flex flex-wrap justify-end gap-2">
             <button
               onClick={() => (window.location.href = "/ranking")}
               className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 px-3 md:px-4 rounded text-xs md:text-sm flex items-center gap-1 md:gap-2"
             >
-              <Trophy className="w-4 h-4" />
-              <span>Ranking</span>
+              <Trophy className="w-4 h-4" /> Ranking
             </button>
             <button
               onClick={() => (window.location.href = "/previsoes")}
               className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 px-3 md:px-4 rounded text-xs md:text-sm flex items-center gap-1 md:gap-2"
             >
-              <Users className="w-4 h-4" />
-              <span>Previsões</span>
+              <Users className="w-4 h-4" /> Previsões
             </button>
             <button
               onClick={() => (window.location.href = "/stats")}
               className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 px-3 md:px-4 rounded text-xs md:text-sm flex items-center gap-1 md:gap-2"
             >
-              <BarChart2 className="w-4 h-4" />
-              <span>Estatísticas</span>
+              <BarChart2 className="w-4 h-4" /> Estatísticas
             </button>
             <button
               onClick={() => (window.location.href = "/brasil")}
-              className="bg-gradient-to-r from-green-600/80 via-yellow-500/80 to-blue-600/80 hover:from-green-600 hover:via-yellow-500 hover:to-blue-600 text-white font-bold py-2 px-3 md:px-4 rounded text-xs md:text-sm flex items-center gap-1 md:gap-2 transition-all duration-200 shadow-md"
+              className="bg-gradient-to-r from-green-600/80 via-yellow-500/80 to-blue-600/80 hover:from-green-600 hover:via-yellow-500 hover:to-blue-600 text-white font-bold py-2 px-3 md:px-4 rounded text-xs md:text-sm flex items-center gap-1 md:gap-2"
             >
-              <Flag className="w-4 h-4" />
-              <span>Brasil na Copa</span>
+              <Flag className="w-4 h-4" /> Brasil na Copa
             </button>
             <button
               onClick={() => supabase.auth.signOut()}
@@ -392,6 +414,54 @@ export default function Dashboard() {
               Sair
             </button>
           </div>
+
+          {/* Menu Mobile Dropdown (aparece abaixo em mobile) */}
+          {mobileMenuOpen && (
+            <div className="md:hidden bg-zinc-900 border border-zinc-800 rounded-lg p-3 flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  window.location.href = "/ranking";
+                }}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 px-3 rounded text-sm flex items-center gap-2"
+              >
+                <Trophy size={16} /> Ranking
+              </button>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  window.location.href = "/previsoes";
+                }}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 px-3 rounded text-sm flex items-center gap-2"
+              >
+                <Users size={16} /> Previsões
+              </button>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  window.location.href = "/stats";
+                }}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 px-3 rounded text-sm flex items-center gap-2"
+              >
+                <BarChart2 size={16} /> Estatísticas
+              </button>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  window.location.href = "/brasil";
+                }}
+                className="bg-gradient-to-r from-green-600/80 via-yellow-500/80 to-blue-600/80 hover:from-green-600 hover:via-yellow-500 hover:to-blue-600 text-white font-bold py-2 px-3 rounded text-sm flex items-center gap-2"
+              >
+                <Flag size={16} /> Brasil na Copa
+              </button>
+              <button
+                onClick={() => supabase.auth.signOut()}
+                className="text-red-500 font-bold text-sm text-left px-3 py-2 hover:bg-zinc-800 rounded"
+              >
+                Sair
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Título */}
@@ -512,43 +582,41 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex items-center gap-3 flex-1 justify-center">
-                  <span className="font-bold text-base w-20 md:w-24 text-right truncate">
-                    {match.team_a}
-                  </span>
+                  {/* Time A (esquerda) */}
+                  <div className="flex items-center justify-end gap-1 w-20 md:w-24 min-w-0">
+                    {match.team_a_logo && (
+                      <img
+                        src={match.team_a_logo}
+                        alt={match.team_a}
+                        className="w-5 h-5 md:w-6 md:h-6 object-contain flex-shrink-0"
+                      />
+                    )}
+                    <button
+                      onClick={() => toggleTeamName(match.id, "a")}
+                      className={`font-bold text-base text-right hover:underline focus:outline-none ${expandedTeam[`${match.id}_a`] ? "break-words" : "truncate"}`}
+                      title={match.team_a}
+                    >
+                      {match.team_a}
+                    </button>
+                  </div>
 
+                  {/* Placar (já existente) */}
                   {!showEditMode ? (
-                    <div className="flex flex-col items-center">
-                      <div className="flex items-center justify-center gap-3 bg-zinc-950 border border-zinc-800 px-6 py-2 rounded-lg">
-                        <span
-                          className={`text-2xl font-bold ${
-                            match.guess_a !== ""
-                              ? "text-green-500"
-                              : "text-zinc-700"
-                          }`}
-                        >
-                          {match.guess_a !== "" ? match.guess_a : "-"}
-                        </span>
-                        <span className="text-zinc-600 font-bold text-sm">
-                          X
-                        </span>
-                        <span
-                          className={`text-2xl font-bold ${
-                            match.guess_b !== ""
-                              ? "text-green-500"
-                              : "text-zinc-700"
-                          }`}
-                        >
-                          {match.guess_b !== "" ? match.guess_b : "-"}
-                        </span>
-                      </div>
-                      {showRealResult && (
-                        <div className="text-xs text-zinc-500 mt-1">
-                          Resultado: {match.goals_a} x {match.goals_b}
-                        </div>
-                      )}
+                    <div className="flex items-center justify-center gap-3 bg-zinc-950 border border-zinc-800 px-6 py-2 rounded-lg">
+                      <span
+                        className={`text-2xl font-bold ${match.guess_a !== "" ? "text-green-500" : "text-zinc-700"}`}
+                      >
+                        {match.guess_a !== "" ? match.guess_a : "-"}
+                      </span>
+                      <span className="text-zinc-600 font-bold text-sm">X</span>
+                      <span
+                        className={`text-2xl font-bold ${match.guess_b !== "" ? "text-green-500" : "text-zinc-700"}`}
+                      >
+                        {match.guess_b !== "" ? match.guess_b : "-"}
+                      </span>
                     </div>
                   ) : (
-                    <>
+                    <div className="flex items-center gap-2">
                       <input
                         type="number"
                         min="0"
@@ -568,12 +636,26 @@ export default function Dashboard() {
                         }
                         className="w-12 h-12 text-center bg-zinc-950 border border-zinc-700 rounded-lg text-xl font-bold focus:outline-none focus:border-green-500"
                       />
-                    </>
+                    </div>
                   )}
 
-                  <span className="font-bold text-base w-20 md:w-24 text-left truncate">
-                    {match.team_b}
-                  </span>
+                  {/* Time B (direita) */}
+                  <div className="flex items-center justify-start gap-1 w-20 md:w-24 min-w-0">
+                    <button
+                      onClick={() => toggleTeamName(match.id, "b")}
+                      className={`font-bold text-base text-left hover:underline focus:outline-none ${expandedTeam[`${match.id}_b`] ? "break-words" : "truncate"}`}
+                      title={match.team_b}
+                    >
+                      {match.team_b}
+                    </button>
+                    {match.team_b_logo && (
+                      <img
+                        src={match.team_b_logo}
+                        alt={match.team_b}
+                        className="w-5 h-5 md:w-6 md:h-6 object-contain flex-shrink-0"
+                      />
+                    )}
+                  </div>
                 </div>
 
                 <div className="w-full md:w-auto">

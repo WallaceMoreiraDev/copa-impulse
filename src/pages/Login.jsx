@@ -1,24 +1,36 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  // ✅ Lê o parâmetro "deactivated" da URL ao carregar o componente
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const deactivated = urlParams.get("deactivated");
+    if (deactivated === "true") {
+      setMessage(
+        "Sua conta foi desativada. Entre em contato com o administrador.",
+      );
+    }
+  }, []);
+
   const handleGoogleLogin = async () => {
     setLoading(true);
-    setMessage("");
+    setMessage(""); // limpa mensagem anterior
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/dashboard`,
         queryParams: {
-          prompt: "select_account", // 🔥 força a tela de seleção de conta
+          prompt: "select_account",
         },
       },
     });
-    if (error)
+    if (error) {
       setMessage("Ocorreu um erro ao tentar conectar. Tente novamente.");
+    }
     setLoading(false);
   };
 
