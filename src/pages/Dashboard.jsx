@@ -11,6 +11,10 @@ import {
   Search,
   Menu,
   X,
+  Settings,
+  User,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { ConfirmationModal, AlertModal } from "../components/Modal";
 
@@ -44,6 +48,15 @@ export default function Dashboard() {
   });
   const [expandedTeam, setExpandedTeam] = useState({}); // objeto com matchId_team (ex: '123_a' ou '123_b')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Configurações de perfil
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [newNickname, setNewNickname] = useState("");
+  const [nicknameError, setNicknameError] = useState("");
+  const [nicknameSuccess, setNicknameSuccess] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
   // Controle de paginação visual
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
@@ -173,6 +186,107 @@ export default function Dashboard() {
     } catch (err) {
       console.error(err);
       setStreak(0);
+    }
+  };
+
+  // Busca dados do perfil (username e última alteração)
+  const fetchProfile = async () => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("username, username_updated_at")
+      .eq("id", userId)
+      .single();
+    if (error) throw error;
+    return data;
+  };
+
+  // Verifica se pode trocar nickname (uma vez por semana)
+  const canChangeNickname = (lastUpdatedAt) => {
+    // Se nunca foi alterado (campo nulo) -> permite
+    if (!lastUpdatedAt) return true;
+    const last = new Date(lastUpdatedAt);
+    const now = new Date();
+    // Se a última alteração foi há menos de 7 dias, bloqueia
+    const diffDays = (now - last) / (1000 * 60 * 60 * 24);
+    return diffDays >= 7;
+  };
+
+  // Trocar nickname
+  const handleChangeNickname = async () => {
+    if (!newNickname.trim()) {
+      setNicknameError("Digite um apelido válido.");
+      return;
+    }
+    const nickname = newNickname.trim().toLowerCase().replace(/\s/g, "_");
+
+    // Verificar se já existe
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", nickname)
+      .maybeSingle();
+    if (existing) {
+      setNicknameError("Este apelido já está em uso.");
+      return;
+    }
+
+    // Verificar limite de 7 dias
+    try {
+      const profile = await fetchProfile();
+      if (!canChangeNickname(profile.username_updated_at)) {
+        const nextDate = new Date(profile.username_updated_at);
+        nextDate.setDate(nextDate.getDate() + 7);
+        setNicknameError(
+          `Você só pode trocar o apelido uma vez por semana. Próxima alteração permitida a partir de ${nextDate.toLocaleDateString("pt-BR")}.`,
+        );
+        return;
+      }
+    } catch (err) {
+      setNicknameError("Erro ao buscar dados do perfil.");
+      return;
+    }
+
+    // Atualizar
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        username: nickname,
+        username_updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+    if (error) {
+      setNicknameError("Erro ao atualizar apelido. Tente novamente.");
+    } else {
+      setNicknameSuccess("Apelido alterado com sucesso!");
+      setNewNickname("");
+      setTimeout(() => {
+        setNicknameSuccess("");
+        setShowSettingsModal(false);
+      }, 2000);
+      loadDashboard(); // recarrega dados
+    }
+  };
+
+  // Excluir conta (desativar em vez de deletar)
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETAR CONTA") {
+      setNicknameError("Digite exatamente 'DELETAR CONTA' para confirmar.");
+      return;
+    }
+    setDeletingAccount(true);
+    try {
+      // Desativa a conta (active = false)
+      const { error } = await supabase
+        .from("profiles")
+        .update({ active: false, username: null }) // remove o apelido também
+        .eq("id", userId);
+      if (error) throw error;
+      await supabase.auth.signOut();
+      window.location.href = "/?account_deleted=true";
+    } catch (err) {
+      console.error(err);
+      setNicknameError(`Erro ao desativar conta: ${err.message}`);
+      setDeletingAccount(false);
     }
   };
 
@@ -382,34 +496,40 @@ export default function Dashboard() {
           </div>
 
           {/* Menu Desktop (visível apenas em desktop, ao lado da logo) */}
-          <div className="hidden md:flex flex-wrap justify-end gap-2">
+          <div className="hidden md:flex flex-wrap justify-end gap-1">
             <button
               onClick={() => (window.location.href = "/ranking")}
-              className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 px-3 md:px-4 rounded text-xs md:text-sm flex items-center gap-1 md:gap-2"
+              className="bg-zinc-800 hover:bg-zinc-700 text-white font-medium py-1.5 px-3 rounded text-xs flex items-center gap-1"
             >
-              <Trophy className="w-4 h-4" /> Ranking
+              <Trophy className="w-3.5 h-3.5" /> Ranking
             </button>
             <button
               onClick={() => (window.location.href = "/previsoes")}
-              className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 px-3 md:px-4 rounded text-xs md:text-sm flex items-center gap-1 md:gap-2"
+              className="bg-zinc-800 hover:bg-zinc-700 text-white font-medium py-1.5 px-3 rounded text-xs flex items-center gap-1"
             >
-              <Users className="w-4 h-4" /> Previsões
+              <Users className="w-3.5 h-3.5" /> Previsões
             </button>
             <button
               onClick={() => (window.location.href = "/stats")}
-              className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 px-3 md:px-4 rounded text-xs md:text-sm flex items-center gap-1 md:gap-2"
+              className="bg-zinc-800 hover:bg-zinc-700 text-white font-medium py-1.5 px-3 rounded text-xs flex items-center gap-1"
             >
-              <BarChart2 className="w-4 h-4" /> Estatísticas
+              <BarChart2 className="w-3.5 h-3.5" /> Estatísticas
             </button>
             <button
               onClick={() => (window.location.href = "/brasil")}
-              className="bg-gradient-to-r from-green-600/80 via-yellow-500/80 to-blue-600/80 hover:from-green-600 hover:via-yellow-500 hover:to-blue-600 text-white font-bold py-2 px-3 md:px-4 rounded text-xs md:text-sm flex items-center gap-1 md:gap-2"
+              className="bg-gradient-to-r from-green-600/80 via-yellow-500/80 to-blue-600/80 hover:from-green-600 hover:via-yellow-500 hover:to-blue-600 text-white font-medium py-1.5 px-3 rounded text-xs flex items-center gap-1"
             >
-              <Flag className="w-4 h-4" /> Brasil na Copa
+              <Flag className="w-3.5 h-3.5" /> Brasil
+            </button>
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="bg-zinc-800 hover:bg-zinc-700 text-white font-medium py-1.5 px-3 rounded text-xs flex items-center gap-1"
+            >
+              <Settings className="w-3.5 h-3.5" /> Configurações
             </button>
             <button
               onClick={() => supabase.auth.signOut()}
-              className="text-red-500 font-bold text-xs md:text-sm hover:underline"
+              className="text-red-400 hover:text-red-300 text-xs px-2 py-1.5"
             >
               Sair
             </button>
@@ -453,6 +573,13 @@ export default function Dashboard() {
                 className="bg-gradient-to-r from-green-600/80 via-yellow-500/80 to-blue-600/80 hover:from-green-600 hover:via-yellow-500 hover:to-blue-600 text-white font-bold py-2 px-3 rounded text-sm flex items-center gap-2"
               >
                 <Flag size={16} /> Brasil na Copa
+              </button>
+              <button
+                onClick={() => setShowSettingsModal(true)}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 px-3 md:px-4 rounded text-xs md:text-sm flex items-center gap-1 md:gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                <span>Configurações</span>
               </button>
               <button
                 onClick={() => supabase.auth.signOut()}
@@ -772,6 +899,117 @@ export default function Dashboard() {
         message={alertModal.message}
         type={alertModal.type}
       />
+      {/* Modal de Configurações (trocar nickname e deletar conta) */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 rounded-xl max-w-md w-full p-6 border border-zinc-700">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">
+                Configurações da conta
+              </h2>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="text-zinc-400 hover:text-white"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Seção trocar apelido */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
+                Alterar apelido
+              </label>
+              <input
+                type="text"
+                value={newNickname}
+                onChange={(e) => setNewNickname(e.target.value)}
+                placeholder="Novo apelido (ex: wallace_silva)"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
+              />
+              {nicknameError && (
+                <p className="text-red-400 text-xs mt-1">{nicknameError}</p>
+              )}
+              {nicknameSuccess && (
+                <p className="text-green-400 text-xs mt-1">{nicknameSuccess}</p>
+              )}
+              <button
+                onClick={handleChangeNickname}
+                className="mt-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded text-sm"
+              >
+                Salvar novo apelido
+              </button>
+              <p className="text-zinc-500 text-xs mt-2">
+                Você pode alterar seu apelido apenas 1 vez por semana.
+              </p>
+            </div>
+
+            {/* Seção excluir conta */}
+            <div className="border-t border-zinc-800 pt-4">
+              <h3 className="text-lg font-semibold text-red-400 mb-2">
+                Zona perigosa
+              </h3>
+              <p className="text-zinc-400 text-sm mb-3">
+                A exclusão da conta é irreversível. Todos os seus palpites serão
+                perdidos.
+              </p>
+              <button
+                onClick={() => {
+                  setShowSettingsModal(false);
+                  setShowDeleteModal(true);
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded text-sm flex items-center gap-1"
+              >
+                <Trash2 size={14} /> Excluir minha conta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmação de exclusão */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 rounded-xl max-w-md w-full p-6 border border-zinc-700">
+            <div className="flex items-center gap-2 mb-3 text-red-400">
+              <AlertTriangle size={24} />
+              <h2 className="text-xl font-bold">
+                Excluir conta permanentemente
+              </h2>
+            </div>
+            <p className="text-zinc-300 mb-4">
+              Esta ação não pode ser desfeita. Todos os seus palpites e dados
+              serão removidos.
+            </p>
+            <p className="text-zinc-400 text-sm mb-2">
+              Digite <strong className="text-red-400">DELETAR CONTA</strong>{" "}
+              para confirmar:
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="DELETAR CONTA"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white mb-4"
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded bg-zinc-700 hover:bg-zinc-600 text-white"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+                className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold"
+              >
+                {deletingAccount ? "Excluindo..." : "Sim, excluir minha conta"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

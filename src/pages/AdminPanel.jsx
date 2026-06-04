@@ -161,6 +161,7 @@ export default function AdminPanel() {
   const handleSave = async (match) => {
     setSaving(match.id);
     setMessage("");
+
     const { error: updateError } = await supabase
       .from("matches")
       .update({
@@ -169,22 +170,32 @@ export default function AdminPanel() {
         status: match.status,
       })
       .eq("id", match.id);
+
     if (updateError) {
       setMessage(`Erro ao salvar placar: ${updateError.message}`);
       setSaving(null);
       return;
     }
-    const { error: rpcError } = await supabase.rpc("atualizar_pontos_jogo", {
-      p_match_id: match.id,
-    });
-    if (rpcError) {
-      setMessage(`Erro ao recalcular pontos: ${rpcError.message}`);
+
+    // Só recalcula pontos se o jogo estiver finalizado (ou se já estava finalizado e o placar foi alterado)
+    if (match.status === "finalizado") {
+      const { error: rpcError } = await supabase.rpc("atualizar_pontos_jogo", {
+        p_match_id: match.id,
+      });
+      if (rpcError) {
+        setMessage(`Erro ao recalcular pontos: ${rpcError.message}`);
+      } else {
+        setMessage(`Placar e pontos atualizados com sucesso!`);
+      }
     } else {
-      setMessage(`Placar e pontos atualizados com sucesso!`);
-      await loadStats();
+      setMessage(
+        `Jogo salvo como "${match.status}". Os pontos só serão calculados quando o status for alterado para "finalizado".`,
+      );
     }
-    setSaving(null);
+
+    await loadStats();
     await loadMatches();
+    setSaving(null);
   };
 
   const handleRecalcAllPoints = async () => {
@@ -293,13 +304,28 @@ export default function AdminPanel() {
     setDeletingAll(true);
     setMessage("");
     try {
+      // 1. Deletar todos os jogos (e palpites via ON DELETE CASCADE)
       const { error: matchesError } = await supabase
         .from("matches")
         .delete()
         .neq("id", 0);
       if (matchesError)
         throw new Error(`Erro ao remover jogos: ${matchesError.message}`);
-      setMessage("Todos os jogos e seus palpites foram removidos com sucesso!");
+
+      // 2. Resetar os pontos de todos os usuários
+      const { error: resetError } = await supabase
+        .from("profiles")
+        .update({ total_points: 0, exatos_count: 0 })
+        .neq("id", "00000000-0000-0000-0000-000000000000"); // atualiza todos
+      if (resetError) {
+        console.error("Erro ao resetar pontos:", resetError);
+        setMessage("Jogos removidos, mas houve erro ao resetar os pontos.");
+      } else {
+        setMessage(
+          "Todos os jogos e palpites removidos, e pontos resetados com sucesso!",
+        );
+      }
+
       await loadMatches();
       await loadStats();
     } catch (err) {

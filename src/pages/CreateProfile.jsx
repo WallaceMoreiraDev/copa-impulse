@@ -11,18 +11,28 @@ export default function CreateProfile({ session, onProfileCreated }) {
     setLoading(true);
     setMessage("");
 
-    const { error } = await supabase.from("profiles").insert([
+    // Garantir que o full_name existe (fallback)
+    const fullName = session.user.user_metadata?.full_name || "Usuário";
+
+    const { error } = await supabase.from("profiles").upsert(
       {
         id: session.user.id,
         username: username,
-        full_name: session.user.user_metadata.full_name,
+        full_name: fullName,
+        active: true,
+        username_updated_at: new Date().toISOString(),
       },
-    ]);
+      { onConflict: "id" },
+    );
 
-    if (error)
-      setMessage("Erro ao salvar seu apelido. O nome pode já estar em uso.");
-    else onProfileCreated();
-
+    if (error) {
+      console.error("Erro ao salvar perfil:", error);
+      setMessage(
+        "Erro ao salvar seu apelido. O nome pode já estar em uso ou o perfil não pôde ser criado.",
+      );
+    } else {
+      onProfileCreated(); // redireciona para dashboard
+    }
     setLoading(false);
   };
 

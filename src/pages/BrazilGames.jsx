@@ -161,7 +161,7 @@ export default function BrazilGames() {
               <Flag className="w-8 h-8 text-green-500" />
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold text-white">Caminho do Hexa</h1>
-                <p className="text-zinc-400 text-sm">Acompanhe a trajetória do Brasil no bolão</p>
+                <p className="text-zinc-400 text-sm">Acompanhe a trajetória do Brasil na copa do mundo!</p>
               </div>
             </div>
             <button
