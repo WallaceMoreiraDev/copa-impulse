@@ -924,7 +924,7 @@ export default function Dashboard() {
                 type="text"
                 value={newNickname}
                 onChange={(e) => setNewNickname(e.target.value)}
-                placeholder="Novo apelido (ex: wallace_silva)"
+                placeholder="Novo apelido (ex: joao_silva)"
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
               />
               {nicknameError && (

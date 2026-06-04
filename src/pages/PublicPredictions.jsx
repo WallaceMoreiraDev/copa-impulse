@@ -277,7 +277,7 @@ export default function PublicPredictions() {
                       return (
                         <div
                           key={guess.id}
-                          className={`flex justify-between items-center text-sm py-1 border-b border-zinc-800/30 ${
+                          className={`flex justify-between items-center text-sm py-1 pl-4 border-b border-zinc-800/30 ${
                             isUser ? "bg-green-900/10 -mx-2 px-2 rounded" : ""
                           }`}
                         >

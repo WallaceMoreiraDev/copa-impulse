@@ -5,7 +5,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  // ✅ Lê o parâmetro "deactivated" da URL ao carregar o componente
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const deactivated = urlParams.get("deactivated");
@@ -18,25 +17,29 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     setLoading(true);
-    setMessage(""); // limpa mensagem anterior
+    setMessage("");
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/dashboard`,
-        queryParams: {
-          prompt: "select_account",
-        },
+        queryParams: { prompt: "select_account" },
       },
     });
-    if (error) {
+    if (error)
       setMessage("Ocorreu um erro ao tentar conectar. Tente novamente.");
-    }
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 font-sans text-zinc-100">
-      <div className="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-md text-center border border-zinc-200">
+    <div
+      className="min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center p-4 font-sans text-zinc-100"
+      style={{ backgroundImage: "url('/bg-brasil.png')" }}
+    >
+      {/* Overlay escuro para contraste */}
+      <div className="absolute inset-0 bg-black/60"></div>
+
+      {/* Card de login (relativo para ficar acima do overlay) */}
+      <div className="relative z-10 bg-white p-10 rounded-3xl shadow-2xl w-full max-w-md text-center border border-zinc-200">
         <div className="mb-3 flex justify-center">
           <img
             src="/impulse.png"

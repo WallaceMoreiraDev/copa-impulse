@@ -51,7 +51,7 @@ export default function CreateProfile({ session, onProfileCreated }) {
             onChange={(e) =>
               setUsername(e.target.value.toLowerCase().replace(/\s+/g, ""))
             }
-            placeholder="ex: wallace_silva"
+            placeholder="ex: joao_silva"
             className="w-full border border-zinc-300 px-4 py-3 rounded-xl text-zinc-800 focus:ring-2 focus:ring-zinc-800 focus:outline-none"
           />
           <button
