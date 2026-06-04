@@ -10,12 +10,17 @@ const PHASES = [
   "Final",
 ];
 
+const ITEMS_PER_PAGE = 10;
+
 export default function PublicPredictions() {
-  const [matches, setMatches] = useState([]);
+  const [allMatches, setAllMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activePhase, setActivePhase] = useState(PHASES[0]);
   const [activeGroup, setActiveGroup] = useState("Todos");
   const [userId, setUserId] = useState(null);
+
+  // Controle de paginação visual
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
   useEffect(() => {
     loadPredictions();
@@ -23,7 +28,7 @@ export default function PublicPredictions() {
 
   const loadPredictions = async () => {
     setLoading(true);
-    // Pega o ID do usuário logado
+    setVisibleCount(ITEMS_PER_PAGE);
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -43,14 +48,14 @@ export default function PublicPredictions() {
     }
 
     if (!matchesData || matchesData.length === 0) {
-      setMatches([]);
+      setAllMatches([]);
       setLoading(false);
       return;
     }
 
     const matchIds = matchesData.map((m) => m.id);
 
-    // 2. Buscar palpites (sem relação aninhada)
+    // 2. Buscar palpites
     const { data: guessesData, error: guessesError } = await supabase
       .from("guesses")
       .select("id, guess_a, guess_b, user_id, match_id")
@@ -82,8 +87,6 @@ export default function PublicPredictions() {
     const matchesWithGuesses = matchesData.map((match) => {
       const guessesForMatch =
         guessesData?.filter((g) => g.match_id === match.id) || [];
-
-      // Calcular consenso (placar mais frequente)
       const frequency = {};
       guessesForMatch.forEach((g) => {
         const key = `${g.guess_a}x${g.guess_b}`;
@@ -101,7 +104,6 @@ export default function PublicPredictions() {
         ? consensus.split("x").map(Number)
         : [null, null];
 
-      // Montar palpites com dados do perfil
       const guessesWithProfile = guessesForMatch.map((g) => ({
         ...g,
         profiles: profileMap[g.user_id] || {
@@ -110,7 +112,6 @@ export default function PublicPredictions() {
         },
       }));
 
-      // Ordenar: primeiro o usuário logado, depois por username
       const sortedGuesses = [...guessesWithProfile].sort((a, b) => {
         if (a.user_id === userId) return -1;
         if (b.user_id === userId) return 1;
@@ -127,19 +128,40 @@ export default function PublicPredictions() {
       };
     });
 
-    setMatches(matchesWithGuesses);
+    setAllMatches(matchesWithGuesses);
     setLoading(false);
   };
 
   // Filtros
-  let filteredMatches = matches.filter((m) => m.fase === activePhase);
-  if (activePhase === "Fase de Grupos" && activeGroup !== "Todos") {
-    filteredMatches = filteredMatches.filter((m) => m.grupo === activeGroup);
-  }
+  const matchesByPhaseGroup = allMatches.filter((m) => m.fase === activePhase);
+  const finalMatches = (() => {
+    if (activePhase === "Fase de Grupos" && activeGroup !== "Todos") {
+      return matchesByPhaseGroup.filter((m) => m.grupo === activeGroup);
+    }
+    return matchesByPhaseGroup;
+  })();
+
+  // Paginação visual
+  const visibleMatches = finalMatches.slice(0, visibleCount);
+  const hasMore = visibleCount < finalMatches.length;
+
+  const loadMore = () => {
+    setVisibleCount((prev) => prev + ITEMS_PER_PAGE);
+  };
+
+  const resetPagination = () => {
+    setVisibleCount(ITEMS_PER_PAGE);
+  };
+
+  // Resetar paginação ao trocar fase/grupo
+  useEffect(() => {
+    resetPagination();
+  }, [activePhase, activeGroup]);
+
   const availableGroups = [
     "Todos",
     ...new Set(
-      matches
+      allMatches
         .filter((m) => m.fase === "Fase de Grupos" && m.grupo)
         .map((m) => m.grupo)
         .sort(),
@@ -223,7 +245,7 @@ export default function PublicPredictions() {
 
         {/* Lista de jogos */}
         <div className="space-y-4">
-          {filteredMatches.map((match) => (
+          {visibleMatches.map((match) => (
             <div
               key={match.id}
               className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden"
@@ -277,7 +299,7 @@ export default function PublicPredictions() {
                       return (
                         <div
                           key={guess.id}
-                          className={`flex justify-between items-center text-sm py-1 pl-4 border-b border-zinc-800/30 ${
+                          className={`flex justify-between items-center text-sm pl-4 py-1 border-b border-zinc-800/30 ${
                             isUser ? "bg-green-900/10 -mx-2 px-2 rounded" : ""
                           }`}
                         >
@@ -346,7 +368,27 @@ export default function PublicPredictions() {
               </div>
             </div>
           ))}
-          {filteredMatches.length === 0 && (
+
+          {/* Botão "Carregar mais" */}
+          {hasMore && (
+            <div className="flex justify-center py-4">
+              <button
+                onClick={loadMore}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors text-sm"
+              >
+                Carregar mais {ITEMS_PER_PAGE} jogos
+              </button>
+            </div>
+          )}
+
+          {/* Indicador de total carregado */}
+          {finalMatches.length > ITEMS_PER_PAGE && (
+            <div className="text-center text-xs text-zinc-500 pt-2">
+              Mostrando {visibleMatches.length} de {finalMatches.length} jogos
+            </div>
+          )}
+
+          {visibleMatches.length === 0 && (
             <div className="text-center py-12 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
               <p className="text-zinc-500 font-medium">
                 Nenhum jogo futuro nesta fase.
