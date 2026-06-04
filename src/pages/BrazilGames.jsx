@@ -226,7 +226,7 @@ export default function BrazilGames() {
                   Caminho do Hexa
                 </h1>
                 <p className="text-zinc-400 text-sm">
-                  Acompanhe a trajetória do Brasil no bolão
+                  Acompanhe a trajetória do Brasil na copa do mundo
                 </p>
               </div>
             </div>
