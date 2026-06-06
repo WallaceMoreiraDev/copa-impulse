@@ -28,6 +28,47 @@ const PHASES = [
 
 const ITEMS_PER_PAGE = 10;
 
+// Configuração do cache (5 minutos)
+const CACHE_EXPIRY_MS = 5 * 60 * 1000;
+const CACHE_KEY_PREFIX = "dashboard_cache_";
+
+// Funções auxiliares de cache
+const getCacheKey = (userId) => `${CACHE_KEY_PREFIX}${userId}`;
+
+const getCachedData = (userId) => {
+  if (!userId) return null;
+  const cacheKey = getCacheKey(userId);
+  const cached = localStorage.getItem(cacheKey);
+  if (!cached) return null;
+  try {
+    const { data, timestamp, streak } = JSON.parse(cached);
+    if (Date.now() - timestamp < CACHE_EXPIRY_MS) {
+      return { data, streak };
+    }
+    localStorage.removeItem(cacheKey);
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const setCachedData = (userId, data, streak) => {
+  if (!userId) return;
+  const cacheKey = getCacheKey(userId);
+  const cachePayload = {
+    data,
+    streak,
+    timestamp: Date.now(),
+  };
+  localStorage.setItem(cacheKey, JSON.stringify(cachePayload));
+};
+
+const clearCache = (userId) => {
+  if (!userId) return;
+  const cacheKey = getCacheKey(userId);
+  localStorage.removeItem(cacheKey);
+};
+
 export default function Dashboard() {
   const [allMatches, setAllMatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,9 +87,8 @@ export default function Dashboard() {
     message: "",
     type: "error",
   });
-  const [expandedTeam, setExpandedTeam] = useState({}); // objeto com matchId_team (ex: '123_a' ou '123_b')
+  const [expandedTeam, setExpandedTeam] = useState({});
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  // Configurações de perfil
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [newNickname, setNewNickname] = useState("");
   const [nicknameError, setNicknameError] = useState("");
@@ -57,11 +97,7 @@ export default function Dashboard() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
-
-  // Controle de paginação visual
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
-
-  // Filtro de busca
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -74,7 +110,7 @@ export default function Dashboard() {
     loadDashboard();
   }, []);
 
-  const loadDashboard = async () => {
+  const loadDashboard = async (forceRefresh = false) => {
     setError(null);
     setLoading(true);
     setVisibleCount(ITEMS_PER_PAGE);
@@ -102,6 +138,25 @@ export default function Dashboard() {
         return;
       }
 
+      // Tentar usar cache (apenas se não for forceRefresh)
+      let mergedData = null;
+      let cachedStreak = null;
+      if (!forceRefresh) {
+        const cached = getCachedData(uid);
+        if (cached && cached.data) {
+          mergedData = cached.data;
+          cachedStreak = cached.streak;
+        }
+      }
+
+      if (mergedData) {
+        setAllMatches(mergedData);
+        if (cachedStreak !== null) setStreak(cachedStreak);
+        setLoading(false);
+        return;
+      }
+
+      // Buscar dados do Supabase
       const { data: matchesData, error: matchesError } = await supabase
         .from("matches")
         .select("*")
@@ -116,7 +171,7 @@ export default function Dashboard() {
 
       if (guessesError) throw new Error(guessesError.message);
 
-      const mergedData = (matchesData || []).map((m) => {
+      const merged = (matchesData || []).map((m) => {
         const guess = guessesData?.find((g) => g.match_id === m.id);
         const pointsEarned = guess?.points_earned ?? null;
         const hasPoints = pointsEarned !== null && pointsEarned > 0;
@@ -132,8 +187,10 @@ export default function Dashboard() {
           isEditing: !guess?.id,
         };
       });
-      setAllMatches(mergedData);
+      setAllMatches(merged);
       await calculateStreak(uid);
+      // Armazenar no cache
+      setCachedData(uid, merged, streak);
     } catch (err) {
       console.error("Erro ao carregar dashboard:", err);
       setError(
@@ -153,7 +210,7 @@ export default function Dashboard() {
 
       if (guessesError || !guesses || guesses.length === 0) {
         setStreak(0);
-        return;
+        return 0;
       }
 
       const matchIds = guesses.map((g) => g.match_id);
@@ -165,7 +222,7 @@ export default function Dashboard() {
 
       if (matchesError || !matches) {
         setStreak(0);
-        return;
+        return 0;
       }
 
       const matchDateMap = {};
@@ -184,13 +241,14 @@ export default function Dashboard() {
         else break;
       }
       setStreak(currentStreak);
+      return currentStreak;
     } catch (err) {
       console.error(err);
       setStreak(0);
+      return 0;
     }
   };
 
-  // Busca dados do perfil (username e última alteração)
   const fetchProfile = async () => {
     const { data, error } = await supabase
       .from("profiles")
@@ -201,18 +259,14 @@ export default function Dashboard() {
     return data;
   };
 
-  // Verifica se pode trocar nickname (uma vez por semana)
   const canChangeNickname = (lastUpdatedAt) => {
-    // Se nunca foi alterado (campo nulo) -> permite
     if (!lastUpdatedAt) return true;
     const last = new Date(lastUpdatedAt);
     const now = new Date();
-    // Se a última alteração foi há menos de 7 dias, bloqueia
     const diffDays = (now - last) / (1000 * 60 * 60 * 24);
     return diffDays >= 7;
   };
 
-  // Trocar nickname
   const handleChangeNickname = async () => {
     if (!newNickname.trim()) {
       setNicknameError("Digite um apelido válido.");
@@ -220,7 +274,6 @@ export default function Dashboard() {
     }
     const nickname = newNickname.trim().toLowerCase().replace(/\s/g, "_");
 
-    // Verificar se já existe
     const { data: existing } = await supabase
       .from("profiles")
       .select("id")
@@ -231,7 +284,6 @@ export default function Dashboard() {
       return;
     }
 
-    // Verificar limite de 7 dias
     try {
       const profile = await fetchProfile();
       if (!canChangeNickname(profile.username_updated_at)) {
@@ -247,7 +299,6 @@ export default function Dashboard() {
       return;
     }
 
-    // Atualizar
     const { error } = await supabase
       .from("profiles")
       .update({
@@ -264,11 +315,11 @@ export default function Dashboard() {
         setNicknameSuccess("");
         setShowSettingsModal(false);
       }, 2000);
-      loadDashboard(); // recarrega dados
+      clearCache(userId);
+      loadDashboard(true);
     }
   };
 
-  // Excluir conta (desativar em vez de deletar)
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== "DELETAR CONTA") {
       setNicknameError("Digite exatamente 'DELETAR CONTA' para confirmar.");
@@ -276,12 +327,12 @@ export default function Dashboard() {
     }
     setDeletingAccount(true);
     try {
-      // Desativa a conta (active = false)
       const { error } = await supabase
         .from("profiles")
-        .update({ active: false, username: null }) // remove o apelido também
+        .update({ active: false, username: null })
         .eq("id", userId);
       if (error) throw error;
+      clearCache(userId);
       await supabase.auth.signOut();
       window.location.href = "/?account_deleted=true";
     } catch (err) {
@@ -362,6 +413,10 @@ export default function Dashboard() {
       );
       setSavedId(match.id);
       setTimeout(() => setSavedId(null), 2000);
+      // Invalida o cache pois os palpites mudaram
+      clearCache(userId);
+      // Recarrega os dados (forçando refresh)
+      await loadDashboard(true);
     } catch (error) {
       console.error("Erro ao salvar:", error);
       setAlertModal({
@@ -382,7 +437,6 @@ export default function Dashboard() {
     return diffMinutes <= 30;
   };
 
-  // Filtro por fase e grupo
   const matchesByPhaseGroup = useMemo(() => {
     let filtered = allMatches.filter((m) => m.fase === activePhase);
     if (activePhase === "Fase de Grupos" && activeGroup !== "Todos") {
@@ -391,7 +445,6 @@ export default function Dashboard() {
     return filtered;
   }, [allMatches, activePhase, activeGroup]);
 
-  // Filtro de busca (por time ou data)
   const filteredMatches = useMemo(() => {
     if (!searchTerm.trim()) return matchesByPhaseGroup;
     const term = searchTerm
@@ -419,7 +472,6 @@ export default function Dashboard() {
     });
   }, [matchesByPhaseGroup, searchTerm]);
 
-  // Paginação visual
   const visibleMatches = useMemo(() => {
     return filteredMatches.slice(0, visibleCount);
   }, [filteredMatches, visibleCount]);
@@ -435,7 +487,6 @@ export default function Dashboard() {
     setSearchTerm("");
   };
 
-  // Quando fase ou grupo mudam, resetar paginação e busca
   useEffect(() => {
     resetPagination();
   }, [activePhase, activeGroup]);
@@ -464,7 +515,7 @@ export default function Dashboard() {
         <div className="bg-red-900/30 border border-red-800 rounded-lg p-6 text-center max-w-md">
           <p className="text-red-300 mb-4">❌ {error}</p>
           <button
-            onClick={() => loadDashboard()}
+            onClick={() => loadDashboard(true)}
             className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-semibold"
           >
             Tentar novamente
@@ -478,16 +529,13 @@ export default function Dashboard() {
     <div className="min-h-screen bg-zinc-950 p-4 md:p-8 font-sans text-zinc-100">
       <div className="max-w-3xl mx-auto">
         {/* Cabeçalho */}
-        {/* ========== CABEÇALHO RESPONSIVO ========== */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4">
-          {/* Logo + menu desktop (lado a lado em desktop) */}
           <div className="flex justify-between items-center w-full md:w-auto">
             <img
               src="/logo5.png"
               alt="impulse"
               className="h-8 md:h-10 object-contain"
             />
-            {/* Botão hambúrguer (mobile) */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden bg-zinc-800 p-2 rounded-lg"
@@ -496,7 +544,6 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {/* Menu Desktop (visível apenas em desktop, ao lado da logo) */}
           <div className="hidden md:flex flex-wrap justify-end gap-1">
             <button
               onClick={() => (window.location.href = "/ranking")}
@@ -536,7 +583,6 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {/* Menu Mobile Dropdown (aparece abaixo em mobile) */}
           {mobileMenuOpen && (
             <div className="md:hidden bg-zinc-900 border border-zinc-800 rounded-lg p-3 flex flex-col gap-2">
               <button
@@ -592,7 +638,6 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Título */}
         <div className="flex items-center justify-between pb-7">
           <div>
             <h1 className="text-2xl font-bold text-white">
@@ -611,7 +656,6 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Banner de ofensiva */}
         {streak >= 3 && (
           <div className="mb-4 bg-gradient-to-r from-orange-950/30 to-amber-950/30 border border-orange-500/30 rounded-lg p-3 flex items-center justify-between gap-3 animate-pulse">
             <div className="flex items-center gap-2">
@@ -626,7 +670,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Filtros de fase */}
         <div className="flex gap-2 overflow-x-auto pb-4 mb-2 border-b border-zinc-800">
           {PHASES.map((fase) => (
             <button
@@ -646,7 +689,6 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Filtros de grupo */}
         {activePhase === "Fase de Grupos" && availableGroups.length > 1 && (
           <div className="flex gap-2 overflow-x-auto pb-4 mb-4">
             {availableGroups.map((grupo) => (
@@ -665,7 +707,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Campo de busca */}
         <div className="relative mb-4">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search size={16} className="text-zinc-500" />
@@ -679,7 +720,6 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Lista de jogos */}
         <div className="space-y-3">
           {visibleMatches.map((match) => {
             const locked = isLocked(match);
@@ -719,7 +759,6 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex items-center gap-3 flex-1 justify-center">
-                  {/* Time A (esquerda) */}
                   <div className="flex items-center justify-end gap-1 w-20 md:w-24 min-w-0">
                     {match.team_a_logo && (
                       <img
@@ -737,7 +776,6 @@ export default function Dashboard() {
                     </button>
                   </div>
 
-                  {/* Placar (já existente) */}
                   {!showEditMode ? (
                     <div className="flex items-center justify-center gap-3 bg-zinc-950 border border-zinc-800 px-6 py-2 rounded-lg">
                       <span
@@ -776,7 +814,6 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  {/* Time B (direita) */}
                   <div className="flex items-center justify-start gap-1 w-20 md:w-24 min-w-0">
                     <button
                       onClick={() => toggleTeamName(match.id, "b")}
@@ -860,7 +897,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Botão "Carregar mais" */}
           {hasMore && (
             <div className="flex justify-center py-4">
               <button
@@ -872,7 +908,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Indicador de total carregado */}
           {filteredMatches.length > ITEMS_PER_PAGE && (
             <div className="text-center text-xs text-zinc-500 pt-2">
               Mostrando {visibleMatches.length} de {filteredMatches.length}{" "}
@@ -909,7 +944,6 @@ export default function Dashboard() {
         message={alertModal.message}
         type={alertModal.type}
       />
-      {/* Modal de Configurações (trocar nickname e deletar conta) */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 rounded-xl max-w-md w-full p-6 border border-zinc-700">
@@ -925,7 +959,6 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* Seção trocar apelido */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-zinc-300 mb-1">
                 Alterar apelido
@@ -954,7 +987,6 @@ export default function Dashboard() {
               </p>
             </div>
 
-            {/* Seção excluir conta */}
             <div className="border-t border-zinc-800 pt-4">
               <h3 className="text-lg font-semibold text-red-400 mb-2">
                 Zona perigosa
@@ -977,7 +1009,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Modal de confirmação de exclusão */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 rounded-xl max-w-md w-full p-6 border border-zinc-700">
