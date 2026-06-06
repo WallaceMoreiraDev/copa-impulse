@@ -28,8 +28,8 @@ const PHASES = [
 
 const ITEMS_PER_PAGE = 10;
 
-// Configuração do cache (5 minutos)
-const CACHE_EXPIRY_MS = 5 * 60 * 1000;
+// Configuração do cache (10 minutos)
+const CACHE_EXPIRY_MS = 10 * 60 * 1000;
 const CACHE_KEY_PREFIX = "dashboard_cache_";
 
 // Funções auxiliares de cache
@@ -156,17 +156,19 @@ export default function Dashboard() {
         return;
       }
 
-      // Buscar dados do Supabase
+      // Buscar dados do Supabase - selecionando apenas colunas necessárias
       const { data: matchesData, error: matchesError } = await supabase
         .from("matches")
-        .select("*")
+        .select(
+          "id, team_a, team_b, match_date, fase, grupo, status, goals_a, goals_b, team_a_logo, team_b_logo",
+        )
         .order("match_date", { ascending: true });
 
       if (matchesError) throw new Error(matchesError.message);
 
       const { data: guessesData, error: guessesError } = await supabase
         .from("guesses")
-        .select("*")
+        .select("id, guess_a, guess_b, user_id, match_id, points_earned")
         .eq("user_id", uid);
 
       if (guessesError) throw new Error(guessesError.message);
