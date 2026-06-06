@@ -56,6 +56,7 @@ export default function Dashboard() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showRulesModal, setShowRulesModal] = useState(false);
 
   // Controle de paginação visual
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
@@ -592,13 +593,22 @@ export default function Dashboard() {
         </div>
 
         {/* Título */}
-        <div className="mb-3">
-          <h1 className="text-2xl font-bold text-white">
-            Jogos para você dar palpite
-          </h1>
-          <p className="text-zinc-400 text-sm mt-1">
-            Escolha o placar e acompanhe sua pontuação
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">
+              Jogos para você dar palpite
+            </h1>
+            <p className="text-zinc-400 text-sm mt-1">
+              Escolha o placar e acompanhe sua pontuação
+            </p>
+          </div>
+          <button
+            onClick={() => setShowRulesModal(true)}
+            className="text-zinc-400 hover:text-white transition-colors"
+            title="Ver regras de pontuação"
+          >
+            <Info size={20} />
+          </button>
         </div>
 
         {/* Banner de ofensiva */}
@@ -1007,6 +1017,56 @@ export default function Dashboard() {
                 {deletingAccount ? "Excluindo..." : "Sim, excluir minha conta"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showRulesModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 rounded-xl max-w-md w-full p-6 border border-zinc-700">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">
+                Regras de Pontuação
+              </h2>
+              <button
+                onClick={() => setShowRulesModal(false)}
+                className="text-zinc-400 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-3 text-sm text-zinc-300">
+              <p>
+                <strong className="text-green-400">🎯 Placar exato:</strong> 100
+                pontos + 10 por cada time com gol acertado (máx 120)
+              </p>
+              <p>
+                <strong className="text-green-400">
+                  🏆 Acertou o vencedor/empate (sem placar exato):
+                </strong>{" "}
+                50 pontos + 10 por cada gol acertado (máx 70)
+              </p>
+              <p>
+                <strong className="text-green-400">
+                  ⚽ Acertou gol(s) de um ou dois times (mas errou o vencedor):
+                </strong>{" "}
+                10 ou 20 pontos
+              </p>
+              <p>
+                <strong className="text-red-400">❌ Errou tudo:</strong> 0
+                pontos
+              </p>
+              <p className="text-xs text-zinc-500 mt-2">
+                Exemplo: jogo real 3x1 → palpite 3x2 → acertou o vencedor e o
+                gol do Brasil (3) → 50 + 10 = 60 pontos
+              </p>
+            </div>
+            <button
+              onClick={() => setShowRulesModal(false)}
+              className="mt-6 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg"
+            >
+              Entendi
+            </button>
           </div>
         </div>
       )}
