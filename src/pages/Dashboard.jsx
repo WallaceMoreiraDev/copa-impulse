@@ -593,7 +593,7 @@ export default function Dashboard() {
         </div>
 
         {/* Título */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pb-7">
           <div>
             <h1 className="text-2xl font-bold text-white">
               Jogos para você dar palpite
