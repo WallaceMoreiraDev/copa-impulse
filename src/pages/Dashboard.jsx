@@ -100,6 +100,14 @@ export default function Dashboard() {
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Estado para controlar quais fases eliminatórias estão completas (todos times definidos)
+  const [phasesReady, setPhasesReady] = useState({
+    "Oitavas de Final": false,
+    "Quartas de Final": false,
+    Semifinal: false,
+    Final: false,
+  });
+
   useEffect(() => {
     const handleScroll = () => setShowScrollTop(window.scrollY > 300);
     window.addEventListener("scroll", handleScroll);
@@ -109,6 +117,34 @@ export default function Dashboard() {
   useEffect(() => {
     loadDashboard();
   }, []);
+
+  // Sempre que allMatches mudar, recalcular quais fases eliminatórias estão completas
+  useEffect(() => {
+    const knockoutPhases = [
+      "Oitavas de Final",
+      "Quartas de Final",
+      "Semifinal",
+      "Final",
+    ];
+    const ready = { ...phasesReady };
+    for (const fase of knockoutPhases) {
+      const jogosDaFase = allMatches.filter((m) => m.fase === fase);
+      if (jogosDaFase.length === 0) {
+        ready[fase] = false;
+      } else {
+        // Verifica se todos os jogos da fase têm times definidos (team_a e team_b não vazios)
+        const allDefined = jogosDaFase.every(
+          (m) =>
+            m.team_a &&
+            m.team_a.trim() !== "" &&
+            m.team_b &&
+            m.team_b.trim() !== "",
+        );
+        ready[fase] = allDefined;
+      }
+    }
+    setPhasesReady(ready);
+  }, [allMatches]);
 
   const loadDashboard = async (forceRefresh = false) => {
     setError(null);
@@ -433,6 +469,21 @@ export default function Dashboard() {
 
   const isLocked = (match) => {
     if (match.status === "finalizado") return true;
+
+    // Para fases eliminatórias, verificar se a fase está completa
+    const knockoutPhases = [
+      "Oitavas de Final",
+      "Quartas de Final",
+      "Semifinal",
+      "Final",
+    ];
+    if (knockoutPhases.includes(match.fase)) {
+      if (!phasesReady[match.fase]) {
+        return true; // bloqueia enquanto nem todos os jogos da fase estão definidos
+      }
+    }
+
+    // Regra original dos 30 minutos antes do jogo
     const matchTime = new Date(match.match_date).getTime();
     const now = new Date().getTime();
     const diffMinutes = (matchTime - now) / (1000 * 60);
@@ -726,11 +777,17 @@ export default function Dashboard() {
           {visibleMatches.map((match) => {
             const locked = isLocked(match);
             const showEditMode = match.isEditing && !locked;
-            const isFinalized = match.status === "finalizado";
-            const showRealResult =
-              isFinalized && match.goals_a !== null && match.goals_b !== null;
             const isBrazilGame =
               match.team_a === "Brasil" || match.team_b === "Brasil";
+
+            // Determinar mensagem de bloqueio específica para fase eliminatória incompleta
+            const isKnockoutIncomplete =
+              [
+                "Oitavas de Final",
+                "Quartas de Final",
+                "Semifinal",
+                "Final",
+              ].includes(match.fase) && !phasesReady[match.fase];
 
             return (
               <div
@@ -840,7 +897,9 @@ export default function Dashboard() {
                       disabled
                       className="bg-zinc-800/50 text-zinc-400 font-medium py-2 px-6 rounded-lg w-full md:w-auto text-sm cursor-not-allowed border border-zinc-700/30"
                     >
-                      Bloqueado
+                      {isKnockoutIncomplete
+                        ? "Aguardando definição de todos os confrontos"
+                        : "Bloqueado"}
                     </button>
                   ) : !match.isEditing ? (
                     <button
