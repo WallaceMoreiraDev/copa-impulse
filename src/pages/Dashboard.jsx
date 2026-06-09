@@ -20,6 +20,7 @@ import { ConfirmationModal, AlertModal } from "../components/Modal";
 
 const PHASES = [
   "Fase de Grupos",
+  "16-avos de Final",
   "Oitavas de Final",
   "Quartas de Final",
   "Semifinal",
@@ -121,6 +122,7 @@ export default function Dashboard() {
   // Sempre que allMatches mudar, recalcular quais fases eliminatórias estão completas
   useEffect(() => {
     const knockoutPhases = [
+      "16-avos de Final",
       "Oitavas de Final",
       "Quartas de Final",
       "Semifinal",
@@ -472,6 +474,7 @@ export default function Dashboard() {
 
     // Para fases eliminatórias, verificar se a fase está completa
     const knockoutPhases = [
+      "16-avos de Final",
       "Oitavas de Final",
       "Quartas de Final",
       "Semifinal",

@@ -737,6 +737,7 @@ export default function AdminPanel() {
                 className="bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white w-full"
               >
                 <option>Fase de Grupos</option>
+                <option>16-avos de Final</option>
                 <option>Oitavas de Final</option>
                 <option>Quartas de Final</option>
                 <option>Semifinal</option>

@@ -4,6 +4,7 @@ import { ArrowLeft, Flame, Trophy, Users, TrendingUp } from "lucide-react";
 
 const PHASES = [
   "Fase de Grupos",
+  "16-avos de Final",
   "Oitavas de Final",
   "Quartas de Final",
   "Semifinal",
