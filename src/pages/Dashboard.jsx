@@ -103,6 +103,7 @@ export default function Dashboard() {
 
   // Estado para controlar quais fases eliminatórias estão completas (todos times definidos)
   const [phasesReady, setPhasesReady] = useState({
+    "16-avos de Final": false,
     "Oitavas de Final": false,
     "Quartas de Final": false,
     Semifinal: false,
