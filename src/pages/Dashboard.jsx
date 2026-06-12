@@ -695,6 +695,17 @@ export default function Dashboard() {
           )}
         </div>
 
+        <div className="mb-4 bg-zinc-800/40 border border-zinc-700 rounded-lg p-3 flex items-start gap-3 text-sm">
+          <Info size={18} className="text-yellow-400 flex-shrink-0 mt-0.5" />
+          <div className="text-zinc-300">
+            📡 Os resultados são atualizados automaticamente, mas podem levar
+            alguns minutos após o fim da partida.
+            <br />
+            Caso note alguma inconsistência, o administrador irá corrigir o mais
+            breve possível.
+          </div>
+        </div>
+
         <div className="flex items-center justify-between pb-7">
           <div>
             <h1 className="text-2xl font-bold text-white">
