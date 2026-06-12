@@ -39,7 +39,7 @@ export default function Stats() {
     const uid = session.user.id;
     setUserId(uid);
 
-    // Busca perfil do usuário
+    // Busca perfil do usuário (pontos totais e acertos exatos já estão atualizados)
     const { data: profile } = await supabase
       .from("profiles")
       .select("total_points, exatos_count")
@@ -61,16 +61,21 @@ export default function Stats() {
     let erros = 0;
     let totalPalpites = 0;
 
+    // Classificação baseada nos pontos reais
     (guessesData || []).forEach((g) => {
       if (g.match && g.match.status === "finalizado") {
         totalPalpites++;
-        if (g.points_earned === 5) {
-          // exato já conta separadamente
-        } else if (g.points_earned === 3) {
+        const pontos = g.points_earned || 0;
+        if (pontos >= 100) {
+          // Acerto exato (100-120)
+          // Não incrementa vencedores porque já conta como exato
+        } else if (pontos >= 50 && pontos < 100) {
+          // Acertou vencedor/empate (50-70)
           vencedores++;
-        } else if (g.points_earned === 0) {
+        } else if (pontos === 0) {
           erros++;
         }
+        // Pontos entre 1-49 (ex: 10 ou 20 de acerto de gols) não contam como vencedor nem erro? Consideramos como "parcial" – não contamos nem como acerto de vencedor nem como erro. Mantemos apenas os contadores de exato, vencedor e erro.
       }
     });
 
@@ -162,7 +167,7 @@ export default function Stats() {
                 {stats.exatos_count}
               </span>
             </div>
-            <p className="text-zinc-400 text-sm">Acertos exatos (5 pts)</p>
+            <p className="text-zinc-400 text-sm">Acertos exatos (120 pts)</p>
           </div>
 
           {/* Acertos de vencedor/empate */}
@@ -174,7 +179,7 @@ export default function Stats() {
               </span>
             </div>
             <p className="text-zinc-400 text-sm">
-              Acertos de vencedor/empate (3 pts)
+              Acertos de vencedor/empate (50–70 pts)
             </p>
           </div>
 
