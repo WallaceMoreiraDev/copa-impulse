@@ -867,7 +867,7 @@ export default function Dashboard() {
                           {match.guess_a !== "" ? match.guess_a : "-"}
                         </span>
                         <span className="text-zinc-600 font-bold text-sm">
-                          
+                          X
                         </span>
                         <span
                           className={`text-2xl font-bold ${match.guess_b !== "" ? "text-green-500" : "text-zinc-700"}`}
