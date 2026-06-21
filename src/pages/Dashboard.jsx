@@ -792,7 +792,6 @@ export default function Dashboard() {
           {visibleMatches.map((match) => {
             const locked = isLocked(match);
             const showEditMode = match.isEditing && !locked;
-            const showRealResult = isFinalized && match.goals_a !== null && match.goals_b !== null;
             const isBrazilGame =
               match.team_a === "Brasil" || match.team_b === "Brasil";
 
