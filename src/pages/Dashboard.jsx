@@ -792,6 +792,9 @@ export default function Dashboard() {
           {visibleMatches.map((match) => {
             const locked = isLocked(match);
             const showEditMode = match.isEditing && !locked;
+            const isFinalized = match.status === "finalizado";
+            const showRealResult =
+              isFinalized && match.goals_a !== null && match.goals_b !== null;
             const isBrazilGame =
               match.team_a === "Brasil" || match.team_b === "Brasil";
 
@@ -851,18 +854,27 @@ export default function Dashboard() {
                   </div>
 
                   {!showEditMode ? (
-                    <div className="flex items-center justify-center gap-3 bg-zinc-950 border border-zinc-800 px-6 py-2 rounded-lg">
-                      <span
-                        className={`text-2xl font-bold ${match.guess_a !== "" ? "text-green-500" : "text-zinc-700"}`}
-                      >
-                        {match.guess_a !== "" ? match.guess_a : "-"}
-                      </span>
-                      <span className="text-zinc-600 font-bold text-sm">X</span>
-                      <span
-                        className={`text-2xl font-bold ${match.guess_b !== "" ? "text-green-500" : "text-zinc-700"}`}
-                      >
-                        {match.guess_b !== "" ? match.guess_b : "-"}
-                      </span>
+                    <div className="flex flex-col items-center">
+                      {showRealResult && (
+                        <div className="text-xs text-zinc-500 font-mono mb-0.5">
+                          {match.goals_a} x {match.goals_b}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-center gap-3 bg-zinc-950 border border-zinc-800 px-6 py-2 rounded-lg">
+                        <span
+                          className={`text-2xl font-bold ${match.guess_a !== "" ? "text-green-500" : "text-zinc-700"}`}
+                        >
+                          {match.guess_a !== "" ? match.guess_a : "-"}
+                        </span>
+                        <span className="text-zinc-600 font-bold text-sm">
+                          
+                        </span>
+                        <span
+                          className={`text-2xl font-bold ${match.guess_b !== "" ? "text-green-500" : "text-zinc-700"}`}
+                        >
+                          {match.guess_b !== "" ? match.guess_b : "-"}
+                        </span>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
