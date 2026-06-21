@@ -851,20 +851,32 @@ export default function Dashboard() {
                   </div>
 
                   {!showEditMode ? (
-                    <div className="flex items-center justify-center gap-3 bg-zinc-950 border border-zinc-800 px-6 py-2 rounded-lg">
-                      <span
-                        className={`text-2xl font-bold ${match.guess_a !== "" ? "text-green-500" : "text-zinc-700"}`}
-                      >
-                        {match.guess_a !== "" ? match.guess_a : "-"}
-                      </span>
-                      <span className="text-zinc-600 font-bold text-sm">X</span>
-                      <span
-                        className={`text-2xl font-bold ${match.guess_b !== "" ? "text-green-500" : "text-zinc-700"}`}
-                      >
-                        {match.guess_b !== "" ? match.guess_b : "-"}
-                      </span>
+                    <div className="flex flex-col items-center">
+                      {/* Placar real (mostra apenas se o jogo estiver finalizado) */}
+                      {showRealResult && (
+                        <div className="text-xs text-zinc-500 font-mono mb-1">
+                          {match.goals_a} x {match.goals_b}
+                        </div>
+                      )}
+                      {/* Placar do palpite do usuário */}
+                      <div className="flex items-center justify-center gap-3 bg-zinc-950 border border-zinc-800 px-6 py-2 rounded-lg">
+                        <span
+                          className={`text-2xl font-bold ${match.guess_a !== "" ? "text-green-500" : "text-zinc-700"}`}
+                        >
+                          {match.guess_a !== "" ? match.guess_a : "-"}
+                        </span>
+                        <span className="text-zinc-600 font-bold text-sm">
+                          X
+                        </span>
+                        <span
+                          className={`text-2xl font-bold ${match.guess_b !== "" ? "text-green-500" : "text-zinc-700"}`}
+                        >
+                          {match.guess_b !== "" ? match.guess_b : "-"}
+                        </span>
+                      </div>
                     </div>
                   ) : (
+                    /* edit mode (inputs) – mantém igual */
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
