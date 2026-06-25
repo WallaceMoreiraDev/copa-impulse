@@ -406,6 +406,20 @@ export default function Dashboard() {
   };
 
   const saveGuess = async (match) => {
+    const saveGuess = async (match) => {
+      // Verifica se o jogo está bloqueado
+      if (isLocked(match)) {
+        setAlertModal({
+          isOpen: true,
+          message: "Este jogo já está bloqueado para palpites.",
+          type: "error",
+        });
+        return;
+      }
+
+      // ... resto da função
+    };
+
     if (match.guess_a === "" || match.guess_b === "") {
       setAlertModal({
         isOpen: true,
