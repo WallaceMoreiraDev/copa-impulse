@@ -565,7 +565,7 @@ export default function Dashboard() {
   const availableGroups = [
     "Todos",
     ...new Set(
-      matches
+      allMatches
         .filter((m) => m.fase === "Fase de Grupos" && m.grupo)
         .map((m) => m.grupo)
         .sort(),
