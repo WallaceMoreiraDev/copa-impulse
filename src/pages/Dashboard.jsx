@@ -78,7 +78,7 @@ export default function Dashboard() {
   const [savingId, setSavingId] = useState(null);
   const [savedId, setSavedId] = useState(null);
   const [activePhase, setActivePhase] = useState(PHASES[0]);
-  const [activeGroup, setActiveGroup] = useState("Todos");
+  const [activeGroup, setActiveGroup] = useState("Pendentes");
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [streak, setStreak] = useState(0);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -510,9 +510,17 @@ export default function Dashboard() {
 
   const matchesByPhaseGroup = useMemo(() => {
     let filtered = allMatches.filter((m) => m.fase === activePhase);
-    if (activePhase === "Fase de Grupos" && activeGroup !== "Todos") {
-      filtered = filtered.filter((m) => m.grupo === activeGroup);
+
+    if (activePhase === "Fase de Grupos") {
+      if (activeGroup === "Pendentes") {
+        // Se clicou em Pendentes, mostra tudo que NÃO está finalizado
+        filtered = filtered.filter((m) => m.status !== "finalizado");
+      } else if (activeGroup !== "Todos") {
+        // Se clicou em uma letra de grupo, mostra os jogos daquele grupo
+        filtered = filtered.filter((m) => m.grupo === activeGroup);
+      }
     }
+
     return filtered;
   }, [allMatches, activePhase, activeGroup]);
 
@@ -564,6 +572,7 @@ export default function Dashboard() {
 
   const availableGroups = [
     "Todos",
+    "Pendentes",
     ...new Set(
       allMatches
         .filter((m) => m.fase === "Fase de Grupos" && m.grupo)
@@ -758,7 +767,9 @@ export default function Dashboard() {
               key={fase}
               onClick={() => {
                 setActivePhase(fase);
-                setActiveGroup("Todos");
+                setActiveGroup(
+                  fase === "Fase de Grupos" ? "Pendentes" : "Todos",
+                );
               }}
               className={`whitespace-nowrap px-4 py-2 rounded-lg font-semibold text-sm transition-colors ${
                 activePhase === fase
