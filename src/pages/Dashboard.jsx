@@ -509,20 +509,9 @@ export default function Dashboard() {
   };
 
   const matchesByPhaseGroup = useMemo(() => {
-    let filteredMatches = matches.filter((m) => m.fase === activePhase);
-
-    if (activePhase === "Fase de Grupos") {
-      if (activeGroup === "Pendentes") {
-        // Se clicou em Pendentes, mostra tudo que NÃO está finalizado
-        filteredMatches = filteredMatches.filter(
-          (m) => m.status !== "finalizado",
-        );
-      } else if (activeGroup !== "Todos") {
-        // Se clicou em uma letra de grupo, mostra os jogos daquele grupo
-        filteredMatches = filteredMatches.filter(
-          (m) => m.grupo === activeGroup,
-        );
-      }
+    let filtered = allMatches.filter((m) => m.fase === activePhase);
+    if (activePhase === "Fase de Grupos" && activeGroup !== "Todos") {
+      filtered = filtered.filter((m) => m.grupo === activeGroup);
     }
     return filtered;
   }, [allMatches, activePhase, activeGroup]);
@@ -575,7 +564,6 @@ export default function Dashboard() {
 
   const availableGroups = [
     "Todos",
-    "Pendentes", // Adicionamos a nova aba aqui
     ...new Set(
       matches
         .filter((m) => m.fase === "Fase de Grupos" && m.grupo)
@@ -795,11 +783,7 @@ export default function Dashboard() {
                     : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
                 }`}
               >
-                {grupo === "Todos"
-                  ? "Todos"
-                  : grupo === "Pendentes"
-                    ? "Pendentes ⏳"
-                    : `Grupo ${grupo}`}
+                {grupo === "Todos" ? "Todos" : `Grupo ${grupo}`}
               </button>
             ))}
           </div>
