@@ -489,7 +489,7 @@ export default function Dashboard() {
 
     // Para fases eliminatórias, verificar se a fase está completa
     const knockoutPhases = [
-      "16-avos de Final",
+      //"16-avos de Final",
       "Oitavas de Final",
       "Quartas de Final",
       "Semifinal",
@@ -794,7 +794,11 @@ export default function Dashboard() {
                     : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
                 }`}
               >
-                {grupo === "Todos" ? "Todos" : `Grupo ${grupo}`}
+                {grupo === "Todos"
+                  ? "Todos"
+                  : grupo === "Pendentes"
+                    ? "Pendentes"
+                    : `Grupo ${grupo}`}
               </button>
             ))}
           </div>
