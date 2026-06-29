@@ -15,6 +15,7 @@ import {
   User,
   Trash2,
   AlertTriangle,
+  Zap,
 } from "lucide-react";
 import { ConfirmationModal, AlertModal } from "../components/Modal";
 
@@ -718,14 +719,38 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div className="mb-4 bg-zinc-800/40 border border-zinc-700 rounded-lg p-3 flex items-start gap-3 text-sm">
-          <Info size={18} className="text-yellow-400 flex-shrink-0 mt-0.5" />
-          <div className="text-zinc-300">
-            📡 Os resultados são atualizados automaticamente, mas podem levar
-            alguns minutos após o fim da partida.
-            <br />
-            Caso note alguma inconsistência, o administrador irá corrigir o mais
-            breve possível.
+        {/* Aviso de Pontuação em Dobro */}
+        <div className="mb-3 bg-gradient-to-r from-amber-900/40 via-yellow-900/20 to-amber-900/40 border border-yellow-500/40 rounded-lg p-4 flex items-start gap-3 shadow-lg shadow-yellow-900/10">
+          <Zap
+            size={22}
+            className="text-yellow-400 flex-shrink-0 mt-0.5 animate-pulse"
+          />
+          <div>
+            <h3 className="text-yellow-400 font-bold text-[15px] mb-1">
+              Atenção: Pontos dobrados (2x)!
+            </h3>
+            <p className="text-yellow-100/80 text-sm leading-relaxed">
+              A partir de agora, todos os novos jogos valem{" "}
+              <strong>o dobro dos pontos</strong>! Uma aposta exata rende
+              incríveis <strong>240 pontos</strong>. Capricha nos palpites!
+            </p>
+          </div>
+        </div>
+
+        {/* Aviso sobre Pênaltis no Mata-Mata */}
+        <div className="mb-6 bg-blue-900/20 border border-blue-800/40 rounded-lg p-4 flex items-start gap-3">
+          <Info size={22} className="text-blue-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-blue-400 font-bold text-[15px] mb-1">
+              Regra para o Mata-Mata (Penáltis não contam)
+            </h3>
+            <p className="text-blue-100/70 text-sm leading-relaxed">
+              O teu palpite vale para o resultado do{" "}
+              <strong>Tempo Regulamentar + Prorrogação</strong> (120 min). Gols
+              de desempate por grandes penalidades não entram na conta do bolão.
+              Se o jogo for a penáltis, o resultado oficial será considerado{" "}
+              <strong>Empate</strong>.
+            </p>
           </div>
         </div>
 
