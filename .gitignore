@@ -1,25 +1,40 @@
-.env.local
-# Logs
+# =========================
+# Dependências e Build
+# =========================
+node_modules/
+dist/
+dist-ssr/
+build/
+
+# =========================
+# Logs e Debug
+# =========================
 logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# =========================
+# Variáveis de Ambiente (CRÍTICO)
+# =========================
+.env
+.env.*
+!.env.example
 
-# Editor directories and files
+# =========================
+# Supabase
+# =========================
+supabase/.temp/
+supabase/.branch/
+
+# =========================
+# Arquivos de Sistema e Editor
+# =========================
+.DS_Store
+Thumbs.db
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+.idea/
+*.swp
