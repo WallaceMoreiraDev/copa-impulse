@@ -200,7 +200,7 @@ export default function Dashboard() {
       const { data: matchesData, error: matchesError } = await supabase
         .from("matches")
         .select(
-          "id, team_a, team_b, match_date, fase, grupo, status, goals_a, goals_b, team_a_logo, team_b_logo",
+          "id, team_a, team_b, match_date, fase, grupo, status, goals_a, goals_b, team_a_logo, team_b_logo, peso",
         )
         .order("match_date", { ascending: true });
 
@@ -854,17 +854,20 @@ export default function Dashboard() {
 
             // Determinar mensagem de bloqueio específica para fase eliminatória incompleta
             const isKnockoutIncomplete =
-              [,
-                "Quartas de Final",
-                "Semifinal",
-                "Final",
-              ].includes(match.fase) && !phasesReady[match.fase];
+              ["Quartas de Final", "Semifinal", "Final"].includes(
+                match.fase,
+              ) && !phasesReady[match.fase];
 
             return (
               <div
                 key={match.id}
                 className="bg-zinc-900 border border-zinc-800 p-5 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden transition-all duration-200"
               >
+                {match.peso && match.peso > 1 && (
+                  <div className="absolute top-0 right-0 bg-yellow-500/90 text-black text-xs font-bold px-3 py-1 rounded-bl-lg shadow-lg z-10">
+                    {match.peso}x
+                  </div>
+                )}
                 {isBrazilGame && (
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 via-yellow-400 to-blue-500"></div>
                 )}
