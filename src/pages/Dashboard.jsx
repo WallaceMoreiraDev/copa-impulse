@@ -854,8 +854,7 @@ export default function Dashboard() {
 
             // Determinar mensagem de bloqueio específica para fase eliminatória incompleta
             const isKnockoutIncomplete =
-              [
-                "Oitavas de Final",
+              [,
                 "Quartas de Final",
                 "Semifinal",
                 "Final",
