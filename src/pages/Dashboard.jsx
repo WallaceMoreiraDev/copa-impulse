@@ -854,14 +854,14 @@ export default function Dashboard() {
 
             // Determinar mensagem de bloqueio específica para fase eliminatória incompleta
             const isKnockoutIncomplete =
-              ["Quartas de Final", "Semifinal", "Final"].includes(
+              ["Semifinal", "Final"].includes(
                 match.fase,
               ) && !phasesReady[match.fase];
 
             return (
               <div
                 key={match.id}
-                className="bg-zinc-900 border border-zinc-800 p-5 p-t6 pb-6 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden transition-all duration-200"
+                className="bg-zinc-900 border border-zinc-800 p-5 p-t7 pb-7 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden transition-all duration-200"
               >
                 {match.peso && match.peso > 1 && (
                   <div className="absolute top-0 right-0 bg-yellow-500/90 text-black text-xs font-bold px-3 py-1 rounded-bl-lg shadow-lg z-10">
