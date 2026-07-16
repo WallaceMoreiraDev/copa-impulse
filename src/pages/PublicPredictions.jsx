@@ -8,6 +8,7 @@ const PHASES = [
   "Oitavas de Final",
   "Quartas de Final",
   "Semifinal",
+  "Disputa de 3º lugar",
   "Final",
 ];
 
