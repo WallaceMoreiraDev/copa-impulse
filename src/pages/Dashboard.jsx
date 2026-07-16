@@ -25,6 +25,7 @@ const PHASES = [
   "Oitavas de Final",
   "Quartas de Final",
   "Semifinal",
+  "Disputa de 3º lugar",
   "Final",
 ];
 
@@ -108,6 +109,7 @@ export default function Dashboard() {
     "Oitavas de Final": false,
     "Quartas de Final": false,
     Semifinal: false,
+    "Disputa de 3º lugar": false,
     Final: false,
   });
 
@@ -128,6 +130,7 @@ export default function Dashboard() {
       "Oitavas de Final",
       "Quartas de Final",
       "Semifinal",
+      "Disputa de 3º lugar",
       "Final",
     ];
     const ready = { ...phasesReady };
@@ -494,6 +497,7 @@ export default function Dashboard() {
       "Oitavas de Final",
       "Quartas de Final",
       "Semifinal",
+      "Disputa de 3º lugar",
       "Final",
     ];
     if (knockoutPhases.includes(match.fase)) {
@@ -854,9 +858,8 @@ export default function Dashboard() {
 
             // Determinar mensagem de bloqueio específica para fase eliminatória incompleta
             const isKnockoutIncomplete =
-              ["Semifinal", "Final"].includes(
-                match.fase,
-              ) && !phasesReady[match.fase];
+              ["Semifinal", "Final"].includes(match.fase) &&
+              !phasesReady[match.fase];
 
             return (
               <div
